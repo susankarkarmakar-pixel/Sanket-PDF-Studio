@@ -11,6 +11,7 @@ declare global {
     api: {
       openFile: () => Promise<FileData | null>
       readFile: (filePath: string) => Promise<FileData | null>
+      saveFile: (data: Uint8Array, defaultPath?: string) => Promise<string | null>
       print: () => Promise<boolean>
       getSettings: () => Promise<Record<string, any>>
       setSetting: (key: string, value: any) => Promise<boolean>

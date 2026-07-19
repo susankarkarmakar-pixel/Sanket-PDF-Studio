@@ -13,7 +13,14 @@ interface AppState {
   searchHighlightCurrent: number
   searchHighlightTotal: number
   setDarkMode: (dark: boolean) => void
+
+  selectedPagesForExtraction: number[]
+  pageOrder: number[] | null
+  togglePageSelection: (page: number, multi: boolean) => void
+  clearSelectedPagesForExtraction: () => void
+  setPageOrder: (order: number[] | null) => void
   setPdf: (path: string | null, data: Uint8Array | null) => void
+
   setScale: (scale: ScaleType | ((prev: ScaleType) => ScaleType)) => void
   setCurrentPage: (page: number) => void
   setNumPages: (num: number) => void
@@ -36,7 +43,22 @@ export const useAppStore = create<AppState>((set) => ({
     set({ isDarkMode: dark })
     window.api.setSetting('isDarkMode', dark)
   },
-  setPdf: (path, data) => set({ pdfPath: path, pdfData: data, currentPage: 1, scale: 1.0 }),
+
+  selectedPagesForExtraction: [],
+  pageOrder: null,
+  togglePageSelection: (page, multi) => set((state) => {
+    if (!multi) return { selectedPagesForExtraction: [page] }
+    const exists = state.selectedPagesForExtraction.includes(page)
+    if (exists) {
+      return { selectedPagesForExtraction: state.selectedPagesForExtraction.filter(p => p !== page) }
+    } else {
+      return { selectedPagesForExtraction: [...state.selectedPagesForExtraction, page].sort((a,b) => a-b) }
+    }
+  }),
+  clearSelectedPagesForExtraction: () => set({ selectedPagesForExtraction: [] }),
+  setPageOrder: (order) => set({ pageOrder: order }),
+  setPdf: (path, data) => set({ pdfPath: path, pdfData: data, currentPage: 1, scale: 1.0, pageOrder: null, selectedPagesForExtraction: [] }),
+
   setScale: (scale) => set((state) => ({ scale: typeof scale === 'function' ? scale(state.scale) : scale })),
   setCurrentPage: (currentPage) => set({ currentPage }),
   setNumPages: (numPages) => set({ numPages }),
