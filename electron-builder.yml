@@ -1,0 +1,33 @@
+appId: com.sanket.pdfstudio
+productName: Sanket PDF Studio
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,dev-app-update.yml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.editorconfig,.gitignore}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!resources/*'
+  - 'resources/pdf.worker.mjs'
+asarUnpack:
+  - resources/**
+win:
+  executableName: Sanket PDF Studio
+  target:
+    - nsis
+nsis:
+  artifactName: ${name}-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+linux:
+  executableName: sanket-pdf-studio
+  target:
+    - AppImage
+    - deb
+  category: Office
+  maintainer: Sanket PDF Studio
+mac:
+  target: []
