@@ -3,6 +3,8 @@ import * as pdfjsLib from 'pdfjs-dist'
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer as PDFJSViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
 import 'pdfjs-dist/web/pdf_viewer.css'
 import { useAppStore } from '../store'
+import { createPortal } from 'react-dom'
+import { AnnotationLayer } from '../features/annotate/AnnotationLayer'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs'
 
@@ -14,6 +16,9 @@ export function PDFViewer() {
   const [pdfViewer, setPdfViewer] = useState<PDFJSViewer | null>(null)
   const [pdfFindController, setPdfFindController] = useState<PDFFindController | null>(null)
   const [eventBus, setEventBus] = useState<EventBus | null>(null)
+
+  const [pageViews, setPageViews] = useState<{ id: number, element: HTMLElement, scale: number, width: number, height: number }[]>([])
+
 
   const {
     pdfData,
@@ -96,10 +101,40 @@ export function PDFViewer() {
       setSearchHighlightTotal(e.matchesCount.total)
     }
 
+
+    const handlePageRendered = (e: any) => {
+      const pageNumber = e.pageNumber;
+      const pageView = ((pdfViewer as any)?._pages)[pageNumber - 1]; // Access internal pages array
+
+      if (pageView && pageView.div) {
+        setPageViews(prev => {
+          // Check if already exists to avoid duplicates on re-render
+          const existing = prev.findIndex(p => p.id === pageNumber);
+          const newEntry = {
+            id: pageNumber,
+            element: pageView.div,
+            scale: pageView.scale,
+            width: pageView.width,
+            height: pageView.height
+          };
+
+          if (existing >= 0) {
+            const next = [...prev];
+            next[existing] = newEntry;
+            return next;
+          }
+          return [...prev, newEntry];
+        });
+      }
+    }
+
+    eventBus.on('pagerendered', handlePageRendered)
+
     eventBus.on('pagechanging', handlePageChange)
     eventBus.on('updatefindcontrolstate', handleUpdateFindControlState)
 
     return () => {
+      eventBus.off('pagerendered', handlePageRendered)
       eventBus.off('pagechanging', handlePageChange)
       eventBus.off('updatefindcontrolstate', handleUpdateFindControlState)
     }
@@ -141,6 +176,19 @@ export function PDFViewer() {
   return (
     <div className="absolute inset-0 overflow-auto bg-gray-200 dark:bg-gray-800" ref={containerRef}>
       <div id="viewer" className="pdfViewer" ref={viewerRef}></div>
+
+      {pageViews.map(page =>
+        createPortal(
+          <AnnotationLayer
+            pageNum={page.id}
+            scale={page.scale}
+            width={page.width}
+            height={page.height}
+          />,
+          page.element
+        )
+      )}
+
       <style>{`
         .page {
           margin: 10px auto !important;

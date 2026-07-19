@@ -71,6 +71,23 @@ app.whenReady().then(() => {
      }
   })
 
+  ipcMain.handle('dialog:saveFile', async (_, data: ArrayBuffer, defaultPath?: string) => {
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        defaultPath: defaultPath || 'annotated.pdf',
+        filters: [{ name: 'PDF Documents', extensions: ['pdf'] }]
+      })
+
+      if (canceled || !filePath) return null
+
+      fs.writeFileSync(filePath, Buffer.from(data))
+      return filePath
+    } catch (err) {
+      console.error('Failed to save file:', err)
+      return null
+    }
+  })
+
   ipcMain.handle('print:pdf', async (event) => {
     try {
       const window = BrowserWindow.fromWebContents(event.sender)

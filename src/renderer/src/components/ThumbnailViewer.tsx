@@ -3,26 +3,41 @@ import * as pdfjsLib from 'pdfjs-dist'
 import { useAppStore } from '../store'
 
 export function ThumbnailViewer() {
-  const { pdfData, numPages, currentPage } = useAppStore()
+  const { pdfData, numPages, currentPage, selectedPagesForExtraction, togglePageSelection, pageOrder, setPageOrder } = useAppStore()
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null)
 
-  // Create a virtualized container
   const containerRef = useRef<HTMLDivElement>(null)
   const [visibleStartIndex, setVisibleStartIndex] = useState(0)
   const itemHeight = 220
 
-  // Render slightly more items than visible to prevent blank space while scrolling
   const visibleItemCount = Math.ceil(window.innerHeight / itemHeight) + 4
   const visibleEndIndex = Math.min(numPages, visibleStartIndex + visibleItemCount)
-  const visiblePages = Array.from(
-    { length: visibleEndIndex - visibleStartIndex },
-    (_, i) => visibleStartIndex + i + 1
-  )
+  const actualPageOrder = pageOrder || Array.from({ length: numPages }, (_, i) => i + 1)
+  const visiblePages = actualPageOrder.slice(visibleStartIndex, visibleEndIndex)
+
+  const [draggedIdx, setDraggedIdx] = useState<number | null>(null)
+
+  const handleDragStart = (idx: number) => {
+    setDraggedIdx(idx)
+  }
+
+  const handleDrop = (targetIdx: number) => {
+    if (draggedIdx === null || draggedIdx === targetIdx) return
+    const newOrder = [...actualPageOrder]
+    const [moved] = newOrder.splice(draggedIdx, 1)
+    newOrder.splice(targetIdx, 0, moved)
+    setPageOrder(newOrder)
+    setDraggedIdx(null)
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault()
+  }
 
   const handleScroll = () => {
     if (containerRef.current) {
       const scrollTop = containerRef.current.scrollTop
-      const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - 2) // Render 2 items above viewport
+      const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - 2)
       setVisibleStartIndex(startIndex)
     }
   }
@@ -35,28 +50,19 @@ export function ThumbnailViewer() {
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData })
         const doc = await loadingTask.promise
-        if (isMounted) {
-          setPdfDoc(doc)
-        }
+        if (isMounted) setPdfDoc(doc)
       } catch (err) {
         console.error('Thumbnail PDF loading error', err)
       }
     }
-
     loadPdf()
-
-    return () => {
-      isMounted = false
-    }
+    return () => { isMounted = false }
   }, [pdfData])
 
   useEffect(() => {
     if (containerRef.current && currentPage) {
-      // Basic auto-scroll to current page when selected outside
       const currentScroll = containerRef.current.scrollTop
       const targetScroll = (currentPage - 1) * itemHeight
-
-      // Only scroll if item is out of view
       if (targetScroll < currentScroll || targetScroll > currentScroll + window.innerHeight) {
         containerRef.current.scrollTo({ top: targetScroll, behavior: 'smooth' })
       }
@@ -72,12 +78,16 @@ export function ThumbnailViewer() {
       className="w-full h-full p-2 overflow-y-auto overflow-x-hidden"
     >
       <div style={{ height: numPages * itemHeight, position: 'relative' }}>
-        {visiblePages.map((pageNum) => (
+        {visiblePages.map((pageNum, i) => (
           <div
-            key={pageNum}
+            key={`${pageNum}-${i}`}
+            draggable
+            onDragStart={() => handleDragStart(visibleStartIndex + i)}
+            onDragOver={handleDragOver}
+            onDrop={() => handleDrop(visibleStartIndex + i)}
             style={{
               position: 'absolute',
-              top: (pageNum - 1) * itemHeight,
+              top: (visibleStartIndex + i) * itemHeight,
               left: 0,
               width: '100%',
               height: itemHeight
@@ -85,8 +95,11 @@ export function ThumbnailViewer() {
           >
             <Thumbnail
               pageNum={pageNum}
+              index={pageNum - 1}
               pdfDoc={pdfDoc}
               isActive={pageNum === currentPage}
+              isSelected={selectedPagesForExtraction.includes(pageNum)}
+              onSelect={(multi) => togglePageSelection(pageNum, multi)}
             />
           </div>
         ))}
@@ -98,17 +111,21 @@ export function ThumbnailViewer() {
 const Thumbnail = memo(({
   pageNum,
   pdfDoc,
-  isActive
+  isActive,
+  isSelected,
+  onSelect
 }: {
   pageNum: number
+  index: number
   pdfDoc: pdfjsLib.PDFDocumentProxy
   isActive: boolean
+  isSelected?: boolean
+  onSelect?: (multi: boolean) => void
 }) => {
   const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null)
 
   useEffect(() => {
     if (!canvasRef || !pdfDoc) return
-
     let isMounted = true
     let renderTask: pdfjsLib.RenderTask | null = null
 
@@ -116,13 +133,10 @@ const Thumbnail = memo(({
       try {
         const page = await pdfDoc.getPage(pageNum)
         if (!isMounted) return
-
-        const viewport = page.getViewport({ scale: 0.2 }) // Small scale for thumbnail
+        const viewport = page.getViewport({ scale: 0.2 })
         const canvas = canvasRef
         const context = canvas.getContext('2d')
-
         if (!context) return
-
         canvas.height = viewport.height
         canvas.width = viewport.width
 
@@ -131,7 +145,6 @@ const Thumbnail = memo(({
           canvas: canvas,
           viewport: viewport
         }
-
         renderTask = page.render(renderContext)
         await renderTask.promise
       } catch (err) {
@@ -140,25 +153,26 @@ const Thumbnail = memo(({
         }
       }
     }
-
     renderPage()
-
     return () => {
       isMounted = false
-      if (renderTask) {
-        renderTask.cancel()
-      }
+      if (renderTask) renderTask.cancel()
     }
   }, [canvasRef, pdfDoc, pageNum])
 
-  const handleClick = () => {
-    window.dispatchEvent(new CustomEvent('page-change-request', { detail: pageNum }))
+  const handleClick = (e: React.MouseEvent) => {
+    if (e.ctrlKey || e.metaKey || e.shiftKey) {
+      if (onSelect) onSelect(true)
+    } else {
+      if (onSelect) onSelect(false)
+      window.dispatchEvent(new CustomEvent('page-change-request', { detail: pageNum }))
+    }
   }
 
   return (
     <div
       className={`flex flex-col items-center justify-center gap-1 cursor-pointer p-2 mx-2 rounded-lg transition-colors h-[200px] ${
-        isActive ? 'bg-gray-200 dark:bg-gray-700 ring-2 ring-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+        isSelected ? "bg-primary/20 ring-2 ring-primary" : isActive ? 'bg-gray-200 dark:bg-gray-700 ring-2 ring-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}
       onClick={handleClick}
     >

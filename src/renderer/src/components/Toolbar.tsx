@@ -1,12 +1,17 @@
 import { useAppStore } from '../store'
-import { FolderOpen, Moon, Sun, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer } from 'lucide-react'
-import { useEffect } from 'react'
+import { FolderOpen, Moon, Sun, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer, Save } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { AnnotationToolbar } from '../features/annotate/AnnotationToolbar'
+import { PageToolsMenu } from '../features/merge-split/PageToolsMenu'
+import { useAnnotationStore } from '../features/annotate/annotationStore'
+import { flattenAnnotations } from '../features/annotate/saveAnnotations'
 
 export function Toolbar() {
   const {
     isDarkMode,
     setDarkMode,
     setPdf,
+    pdfData,
     scale,
     setScale,
     currentPage,
@@ -25,6 +30,9 @@ export function Toolbar() {
       document.documentElement.classList.remove('dark')
     }
   }, [isDarkMode])
+
+  const { annotations } = useAnnotationStore()
+  const [isSaving, setIsSaving] = useState(false)
 
   const handleOpenFile = async () => {
     const file = await window.api.openFile()
@@ -50,6 +58,38 @@ export function Toolbar() {
         >
           <FolderOpen size={20} />
         </button>
+        <button
+          onClick={async () => {
+            if (!pdfData) return
+            setIsSaving(true)
+            try {
+              const newPdfData = await flattenAnnotations(pdfData, annotations)
+              const savedPath = await window.api.saveFile(newPdfData, 'annotated-document.pdf')
+              if (savedPath) {
+                // Toast logic could go here
+                if (confirm(`Saved successfully to ${savedPath}.\nDo you want to open the new file?`)) {
+                   const fileData = await window.api.readFile(savedPath)
+                   if (fileData) {
+                     setPdf(fileData.path, fileData.data)
+                     useAnnotationStore.getState().clearAnnotations()
+                   }
+                }
+              }
+            } catch (err) {
+              console.error(err)
+              alert('Failed to save file.')
+            } finally {
+              setIsSaving(false)
+            }
+          }}
+          disabled={!pdfData || isSaving}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-50"
+          title="Save Annotations (Save As)"
+        >
+          <Save size={20} />
+        </button>
+        <AnnotationToolbar />
+        <PageToolsMenu />
       </div>
 
       <div className="flex items-center gap-4">
