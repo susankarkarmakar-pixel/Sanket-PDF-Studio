@@ -1,0 +1,161 @@
+import { useEffect, useRef, useState } from 'react'
+import * as pdfjsLib from 'pdfjs-dist'
+import { EventBus, PDFFindController, PDFLinkService, PDFViewer as PDFJSViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
+import 'pdfjs-dist/web/pdf_viewer.css'
+import { useAppStore } from '../store'
+
+pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs'
+
+export function PDFViewer() {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const viewerRef = useRef<HTMLDivElement>(null)
+
+  const [, setPdfDocument] = useState<pdfjsLib.PDFDocumentProxy | null>(null)
+  const [pdfViewer, setPdfViewer] = useState<PDFJSViewer | null>(null)
+  const [pdfFindController, setPdfFindController] = useState<PDFFindController | null>(null)
+  const [eventBus, setEventBus] = useState<EventBus | null>(null)
+
+  const {
+    pdfData,
+    scale,
+    setCurrentPage,
+    setNumPages,
+    setSearchHighlightCurrent,
+    setSearchHighlightTotal
+  } = useAppStore()
+
+  useEffect(() => {
+    if (!containerRef.current || !viewerRef.current) return
+
+    const bus = new EventBus()
+    const linkService = new PDFLinkService({ eventBus: bus })
+
+    const findController = new PDFFindController({
+      eventBus: bus,
+      linkService,
+    })
+
+    const viewer = new PDFJSViewer({
+      container: containerRef.current,
+      viewer: viewerRef.current,
+      eventBus: bus,
+      linkService,
+      findController,
+      removePageBorders: true,
+    })
+
+    linkService.setViewer(viewer)
+
+    setEventBus(bus)
+    setPdfViewer(viewer)
+    setPdfFindController(findController)
+
+    return () => {
+      // Cleanup
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!pdfData || !pdfViewer || !eventBus) return
+
+    const loadDocument = async () => {
+      try {
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData })
+        const doc = await loadingTask.promise
+        setPdfDocument(doc)
+        setNumPages(doc.numPages)
+
+        pdfViewer.setDocument(doc)
+      } catch (err) {
+        console.error('Error loading PDF:', err)
+      }
+    }
+
+    loadDocument()
+
+    return () => {
+      // Cleanup document if needed
+    }
+  }, [pdfData, pdfViewer, eventBus, setNumPages])
+
+  useEffect(() => {
+    if (pdfViewer) {
+      pdfViewer.currentScaleValue = scale.toString()
+    }
+  }, [scale, pdfViewer])
+
+  useEffect(() => {
+    if (!eventBus) return
+
+    const handlePageChange = (e: any) => {
+      setCurrentPage(e.pageNumber)
+    }
+
+    const handleUpdateFindControlState = (e: any) => {
+      setSearchHighlightCurrent(e.matchesCount.current)
+      setSearchHighlightTotal(e.matchesCount.total)
+    }
+
+    eventBus.on('pagechanging', handlePageChange)
+    eventBus.on('updatefindcontrolstate', handleUpdateFindControlState)
+
+    return () => {
+      eventBus.off('pagechanging', handlePageChange)
+      eventBus.off('updatefindcontrolstate', handleUpdateFindControlState)
+    }
+  }, [eventBus, setCurrentPage, setSearchHighlightCurrent, setSearchHighlightTotal])
+
+  useEffect(() => {
+    const handleSearchRequest = (e: CustomEvent) => {
+      if (!eventBus || !pdfFindController) return
+
+      const { query, type } = e.detail
+      eventBus.dispatch('find', {
+        type: type === 'next' ? 'findagain' : (type === 'prev' ? 'findagain' : 'find'),
+        query: query,
+        phraseSearch: true,
+        caseSensitive: false,
+        entireWord: false,
+        highlightAll: true,
+        findPrevious: type === 'prev'
+      })
+    }
+
+    const handlePageChangeRequest = (e: CustomEvent) => {
+      if (pdfViewer) {
+        pdfViewer.currentPageNumber = e.detail
+      }
+    }
+
+    window.addEventListener('pdf-search', handleSearchRequest as EventListener)
+    window.addEventListener('page-change-request', handlePageChangeRequest as EventListener)
+
+    return () => {
+      window.removeEventListener('pdf-search', handleSearchRequest as EventListener)
+      window.removeEventListener('page-change-request', handlePageChangeRequest as EventListener)
+    }
+  }, [eventBus, pdfFindController, pdfViewer])
+
+  if (!pdfData) return null
+
+  return (
+    <div className="absolute inset-0 overflow-auto bg-gray-200 dark:bg-gray-800" ref={containerRef}>
+      <div id="viewer" className="pdfViewer" ref={viewerRef}></div>
+      <style>{`
+        .page {
+          margin: 10px auto !important;
+          border-radius: 4px;
+          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border: none !important;
+          background-color: white;
+        }
+        .dark .page {
+          filter: invert(90%) hue-rotate(180deg);
+        }
+        .dark .textLayer {
+          filter: invert(100%) hue-rotate(180deg);
+        }
+      `}</style>
+    </div>
+  )
+}
