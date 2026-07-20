@@ -72,3 +72,24 @@ To build a lightweight, modern, and completely offline alternative to traditiona
 4. **Place**: Open the "Add Signature Image" menu again, and drag your saved signature onto the PDF page.
 5. **Adjust**: Make sure the pointer tool is selected. Click the signature to select it. Drag it around to move it, or drag the bottom-right handle to resize it.
 6. **Save**: Click the "Save Annotations" button. Ensure the resulting PDF visually contains your signature as part of the page content.
+
+### Phase 5: Polish & Final Build (Complete)
+- Native print support via Electron APIs.
+- Settings panel to configure light/dark/system theme and default zoom behavior.
+- Recent files tracking (stores up to 10 recently opened documents) on the start screen.
+- Configured branded icons for Windows (.ico) and Linux (.png) and app title "Sanket PDF Studio".
+- Updated `electron-builder` configurations.
+
+## 🛠️ Testing Manual (Phase 5)
+1. **Print**: With a PDF open, click the Printer icon in the toolbar. A native print dialog should open.
+2. **Settings**: Click the Settings (gear) icon. Change the theme to Dark or System. Change default zoom to "Fit Width". Restart or open a new PDF to see changes persist.
+3. **Recent Files**: Close the application or refresh without opening a file. The start screen will list your recently opened files. Clicking one opens it instantly.
+
+## 🏗️ Building from Source
+Ensure you have Node.js installed.
+```bash
+npm install
+npm run dev # Start development server
+npm run build:win # Build for Windows (NSIS installer)
+npm run build:linux # Build for Linux (AppImage & .deb)
+```
