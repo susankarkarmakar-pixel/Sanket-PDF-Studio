@@ -93,3 +93,14 @@ npm run dev # Start development server
 npm run build:win # Build for Windows (NSIS installer)
 npm run build:linux # Build for Linux (AppImage & .deb)
 ```
+
+## 📦 Downloads & Releases
+Installers for Windows and Linux are automatically generated using GitHub Actions.
+To create a new release and generate downloadable installers:
+1. Cut a new version tag (e.g. `v1.0.0`) and push it to the repository:
+   ```bash
+   git tag v1.0.0
+   git push origin --tags
+   ```
+2. The `Build and Release` workflow will run automatically.
+3. Within a few minutes, the Windows `.exe` and Linux `.AppImage` / `.deb` installers will be available in the repository's **Releases** page.
