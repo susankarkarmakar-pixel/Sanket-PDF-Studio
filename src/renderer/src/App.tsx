@@ -6,16 +6,12 @@ import { ThumbnailViewer } from './components/ThumbnailViewer'
 import { useAppStore } from './store'
 
 function App() {
-  const { setDarkMode, setPdf } = useAppStore()
+  const { loadSettings, setPdf } = useAppStore()
   const [isDragging, setIsDragging] = useState(false)
 
   useEffect(() => {
     // Load settings
-    window.api.getSettings().then((settings) => {
-      if (settings.isDarkMode !== undefined) {
-        setDarkMode(settings.isDarkMode)
-      }
-    })
+    loadSettings()
   }, [])
 
   const onDragOver = (e: React.DragEvent) => {
@@ -36,6 +32,7 @@ function App() {
       const fileData = await window.api.readFile((file as any).path)
       if (fileData) {
         setPdf(fileData.path, fileData.data)
+        useAppStore.getState().addRecentFile(fileData.path, file.name)
       }
     }
   }
@@ -54,9 +51,61 @@ function App() {
         </Sidebar>
         <main className="flex-1 overflow-hidden relative bg-gray-200 dark:bg-gray-800">
           <PDFViewer />
-          <div className="absolute inset-0 flex items-center justify-center text-gray-400">
-            Open a PDF to begin
+
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-200 dark:bg-gray-800 p-8">
+            <h1 className="text-4xl font-bold text-gray-400 mb-8">Sanket PDF Studio</h1>
+
+            <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md w-full max-w-2xl">
+              <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Recent Files</h2>
+
+              {useAppStore.getState().recentFiles.length === 0 ? (
+                <p className="text-gray-500 italic py-4">No recent files. Open a PDF to begin.</p>
+              ) : (
+                <div className="space-y-2 max-h-60 overflow-y-auto">
+                  {useAppStore.getState().recentFiles.map((file, i) => (
+                    <button
+                      key={i}
+                      onClick={async () => {
+                        const fileData = await window.api.readFile(file.path)
+                        if (fileData) {
+                          setPdf(fileData.path, fileData.data)
+                          useAppStore.getState().addRecentFile(fileData.path, file.name)
+                        } else {
+                          alert('File not found.')
+                          useAppStore.getState().removeRecentFile(file.path)
+                        }
+                      }}
+                      className="w-full text-left px-4 py-3 rounded hover:bg-gray-100 dark:hover:bg-gray-600 flex justify-between items-center group transition-colors border border-transparent hover:border-gray-200 dark:hover:border-gray-500"
+                    >
+                      <div className="truncate flex-1">
+                        <p className="font-medium truncate">{file.name}</p>
+                        <p className="text-xs text-gray-500 truncate" title={file.path}>{file.path}</p>
+                      </div>
+                      <span className="text-xs text-gray-400 ml-4 hidden group-hover:block">
+                        {new Date(file.lastOpened).toLocaleDateString()}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
+
+              <div className="mt-6 flex justify-center">
+                 <button
+                    onClick={async () => {
+                      const file = await window.api.openFile()
+                      if (file) {
+                        setPdf(file.path, file.data)
+                        useAppStore.getState().addRecentFile(file.path, file.path.split(/[\\/]/).pop() || 'Unknown')
+                      }
+                    }}
+                    className="px-6 py-2 bg-primary text-white rounded hover:bg-primary-dark font-medium shadow"
+                 >
+                   Open File...
+                 </button>
+              </div>
+            </div>
           </div>
+
         </main>
       </div>
       {isDragging && (

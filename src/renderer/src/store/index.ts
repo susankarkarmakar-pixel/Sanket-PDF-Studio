@@ -3,7 +3,9 @@ import { create } from 'zustand'
 type ScaleType = number | 'page-width' | 'page-fit'
 
 interface AppState {
-  isDarkMode: boolean
+  theme: 'light' | 'dark' | 'system'
+  defaultZoom: ScaleType
+  recentFiles: { path: string, name: string, lastOpened: number }[]
   pdfPath: string | null
   pdfData: Uint8Array | null
   scale: ScaleType
@@ -12,7 +14,11 @@ interface AppState {
   searchQuery: string
   searchHighlightCurrent: number
   searchHighlightTotal: number
-  setDarkMode: (dark: boolean) => void
+  setTheme: (theme: 'light' | 'dark' | 'system') => void
+  setDefaultZoom: (zoom: ScaleType) => void
+  addRecentFile: (path: string, name: string) => void
+  removeRecentFile: (path: string) => void
+  loadSettings: () => Promise<void>
 
   selectedPagesForExtraction: number[]
   pageOrder: number[] | null
@@ -30,7 +36,9 @@ interface AppState {
 }
 
 export const useAppStore = create<AppState>((set) => ({
-  isDarkMode: false,
+  theme: 'system',
+  defaultZoom: 1.0,
+  recentFiles: [],
   pdfPath: null,
   pdfData: null,
   scale: 1.0,
@@ -39,9 +47,33 @@ export const useAppStore = create<AppState>((set) => ({
   searchQuery: '',
   searchHighlightCurrent: 0,
   searchHighlightTotal: 0,
-  setDarkMode: (dark) => {
-    set({ isDarkMode: dark })
-    window.api.setSetting('isDarkMode', dark)
+  setTheme: (theme) => {
+    set({ theme })
+    window.api.setSetting('theme', theme)
+  },
+  setDefaultZoom: (defaultZoom) => {
+    set({ defaultZoom })
+    window.api.setSetting('defaultZoom', defaultZoom)
+  },
+  addRecentFile: (path, name) => set((state) => {
+    const recent = state.recentFiles.filter(f => f.path !== path)
+    recent.unshift({ path, name, lastOpened: Date.now() })
+    const updated = recent.slice(0, 10) // Keep last 10
+    window.api.setSetting('recentFiles', updated)
+    return { recentFiles: updated }
+  }),
+  removeRecentFile: (path) => set((state) => {
+    const updated = state.recentFiles.filter(f => f.path !== path)
+    window.api.setSetting('recentFiles', updated)
+    return { recentFiles: updated }
+  }),
+  loadSettings: async () => {
+    const settings = await window.api.getSettings()
+    set((state) => ({
+      theme: settings.theme || state.theme,
+      defaultZoom: settings.defaultZoom || state.defaultZoom,
+      recentFiles: settings.recentFiles || state.recentFiles
+    }))
   },
 
   selectedPagesForExtraction: [],
@@ -57,7 +89,7 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   clearSelectedPagesForExtraction: () => set({ selectedPagesForExtraction: [] }),
   setPageOrder: (order) => set({ pageOrder: order }),
-  setPdf: (path, data) => set({ pdfPath: path, pdfData: data, currentPage: 1, scale: 1.0, pageOrder: null, selectedPagesForExtraction: [] }),
+  setPdf: (path, data) => set((state) => ({ pdfPath: path, pdfData: data, currentPage: 1, scale: state.defaultZoom, pageOrder: null, selectedPagesForExtraction: [] })),
 
   setScale: (scale) => set((state) => ({ scale: typeof scale === 'function' ? scale(state.scale) : scale })),
   setCurrentPage: (currentPage) => set({ currentPage }),

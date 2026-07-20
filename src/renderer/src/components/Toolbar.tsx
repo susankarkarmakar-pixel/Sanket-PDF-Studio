@@ -1,16 +1,16 @@
 import { useAppStore } from '../store'
-import { FolderOpen, Moon, Sun, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer, Save } from 'lucide-react'
+import { FolderOpen, Settings, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AnnotationToolbar } from '../features/annotate/AnnotationToolbar'
 import { SignatureMenu } from '../features/signature/SignatureMenu'
+import { SettingsModal } from './SettingsModal'
 import { PageToolsMenu } from '../features/merge-split/PageToolsMenu'
 import { useAnnotationStore } from '../features/annotate/annotationStore'
 import { flattenAnnotations } from '../features/annotate/saveAnnotations'
 
 export function Toolbar() {
   const {
-    isDarkMode,
-    setDarkMode,
+    theme,
     setPdf,
     pdfData,
     scale,
@@ -25,20 +25,26 @@ export function Toolbar() {
   } = useAppStore()
 
   useEffect(() => {
-    if (isDarkMode) {
+    const isDark =
+      theme === 'dark' ||
+      (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+    if (isDark) {
       document.documentElement.classList.add('dark')
     } else {
       document.documentElement.classList.remove('dark')
     }
-  }, [isDarkMode])
+  }, [theme])
 
   const { annotations } = useAnnotationStore()
   const [isSaving, setIsSaving] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
 
   const handleOpenFile = async () => {
     const file = await window.api.openFile()
     if (file) {
       setPdf(file.path, file.data)
+      useAppStore.getState().addRecentFile(file.path, file.path.split(/[\\/]/).pop() || 'Unknown')
     }
   }
 
@@ -184,12 +190,13 @@ export function Toolbar() {
         </div>
 
         <button
-          onClick={() => setDarkMode(!isDarkMode)}
+          onClick={() => setShowSettings(true)}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
-          title="Toggle Dark Mode"
+          title="Settings"
         >
-          {isDarkMode ? <Sun size={20} /> : <Moon size={20} />}
+          <Settings size={20} />
         </button>
+        {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
       </div>
     </header>
   )
