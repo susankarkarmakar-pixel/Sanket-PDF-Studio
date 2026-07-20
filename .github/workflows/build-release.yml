@@ -21,7 +21,7 @@ jobs:
         run: npm install
 
       - name: Build Windows
-        run: npm run build:win
+        run: npm run build:win -- --publish never
 
       - name: Upload Windows Artifact
         uses: actions/upload-artifact@v4
@@ -44,7 +44,7 @@ jobs:
         run: npm install
 
       - name: Build Linux
-        run: npm run build:linux
+        run: npm run build:linux -- --publish never
 
       - name: Upload Linux Artifact
         uses: actions/upload-artifact@v4
