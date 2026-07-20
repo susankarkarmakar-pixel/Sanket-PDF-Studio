@@ -2,6 +2,7 @@ import { useAppStore } from '../store'
 import { FolderOpen, Moon, Sun, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AnnotationToolbar } from '../features/annotate/AnnotationToolbar'
+import { SignatureMenu } from '../features/signature/SignatureMenu'
 import { PageToolsMenu } from '../features/merge-split/PageToolsMenu'
 import { useAnnotationStore } from '../features/annotate/annotationStore'
 import { flattenAnnotations } from '../features/annotate/saveAnnotations'
@@ -90,6 +91,7 @@ export function Toolbar() {
         </button>
         <AnnotationToolbar />
         <PageToolsMenu />
+        <SignatureMenu />
       </div>
 
       <div className="flex items-center gap-4">

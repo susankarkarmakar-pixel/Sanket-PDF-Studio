@@ -1,5 +1,5 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
-import { Annotation, HighlightAnnotation, DrawAnnotation, TextAnnotation, StickyAnnotation } from './annotationStore'
+import { Annotation, HighlightAnnotation, DrawAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation } from './annotationStore'
 
 // Helper to convert #rrggbb to pdf-lib rgb
 const getPdfRgb = (hex: string) => {
@@ -95,6 +95,29 @@ export const flattenAnnotations = async (
            size: 12,
            color: rgb(0,0,0)
          })
+       }
+
+    } else if (ann.type === 'signature') {
+       const sigAnn = ann as SignatureAnnotation
+       try {
+         // Determine image format (assume PNG due to UI constraints, but handle error)
+         const imgDataUrl = sigAnn.dataUrl
+         const base64Data = imgDataUrl.split(',')[1]
+         if (base64Data) {
+           const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
+           // For now assume PNG since UI only accepts PNG / outputs PNG from canvas
+           const pdfImage = await pdfDoc.embedPng(imageBytes)
+
+           page.drawImage(pdfImage, {
+             x: sigAnn.x,
+             // Account for the height to correctly map top-left visual to bottom-left PDF coordinates
+             y: height - sigAnn.y - sigAnn.height,
+             width: sigAnn.width,
+             height: sigAnn.height,
+           })
+         }
+       } catch (err) {
+         console.error('Failed to embed signature image', err)
        }
     }
   }

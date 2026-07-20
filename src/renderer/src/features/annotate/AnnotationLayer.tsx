@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useAnnotationStore, DrawAnnotation, HighlightAnnotation, TextAnnotation, StickyAnnotation } from './annotationStore'
+import { useAnnotationStore, DrawAnnotation, HighlightAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation } from './annotationStore'
 import { Trash2 } from 'lucide-react'
 
 interface AnnotationLayerProps {
@@ -21,6 +21,11 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
   const [currentPath, setCurrentPath] = useState<{x: number, y: number}[]>([])
   const [startPoint, setStartPoint] = useState<{x: number, y: number} | null>(null)
   const [currentRect, setCurrentRect] = useState<{x: number, y: number, width: number, height: number} | null>(null)
+
+  // -- Reposition & Resize State --
+  const [draggingAnnId, setDraggingAnnId] = useState<string | null>(null)
+  const [dragOffset, setDragOffset] = useState<{x: number, y: number} | null>(null)
+  const [resizingAnnId, setResizingAnnId] = useState<string | null>(null)
 
   const getCoordinates = (e: React.MouseEvent | React.TouchEvent) => {
     if (!layerRef.current) return { x: 0, y: 0 }
@@ -132,6 +137,25 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
       onMouseDown={handlePointerDown}
       onMouseMove={handlePointerMove}
       onMouseUp={handlePointerUp}
+      onDragOver={(e) => e.preventDefault()}
+      onDrop={(e) => {
+        e.preventDefault()
+        const dataUrl = e.dataTransfer.getData('signature')
+        if (dataUrl) {
+          const { x, y } = getCoordinates(e)
+          addAnnotation({
+            id: crypto.randomUUID(),
+            page: pageNum,
+            type: 'signature',
+            color: '#000',
+            x,
+            y,
+            width: 150,
+            height: 50,
+            dataUrl
+          } as SignatureAnnotation)
+        }
+      }}
       onMouseLeave={handlePointerUp}
       onTouchStart={handlePointerDown}
       onTouchMove={handlePointerMove}
@@ -187,6 +211,81 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
       {/* HTML based annotations (Text, Sticky Notes) and Selection Overlays */}
       {pageAnnotations.map(ann => {
         const isSelected = selectedAnnotationId === ann.id
+
+
+        if (ann.type === 'signature') {
+          const sigAnn = ann as SignatureAnnotation;
+          return (
+            <div
+              key={ann.id}
+              className={`absolute group ${isSelected ? 'ring-2 ring-primary border-primary border-dashed' : 'border-transparent'}`}
+              style={{
+                left: sigAnn.x * scale,
+                top: sigAnn.y * scale,
+                width: sigAnn.width * scale,
+                height: sigAnn.height * scale,
+                pointerEvents: currentTool === 'pointer' ? 'auto' : 'none',
+                cursor: currentTool === 'pointer' ? 'move' : 'default'
+              }}
+              onPointerDown={(e) => {
+                if (currentTool !== 'pointer') return;
+                e.stopPropagation();
+                setSelectedAnnotationId(ann.id);
+                // Start drag
+                const { x, y } = getCoordinates(e);
+                setDraggingAnnId(ann.id);
+                setDragOffset({ x: x - sigAnn.x, y: y - sigAnn.y });
+                (e.target as HTMLElement).setPointerCapture(e.pointerId);
+              }}
+              onPointerMove={(e) => {
+                if (draggingAnnId !== ann.id || !dragOffset) return;
+                const { x, y } = getCoordinates(e);
+                updateAnnotation(ann.id, { x: x - dragOffset.x, y: y - dragOffset.y });
+              }}
+              onPointerUp={(e) => {
+                if (draggingAnnId === ann.id) {
+                  setDraggingAnnId(null);
+                  setDragOffset(null);
+                  (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                }
+              }}
+            >
+              <img src={sigAnn.dataUrl} alt="Signature" className="w-full h-full object-contain pointer-events-none" draggable={false} />
+
+              {isSelected && (
+                <>
+                  <button
+                    onClick={(e) => { e.stopPropagation(); deleteAnnotation(ann.id); }}
+                    className="absolute -top-8 -right-4 bg-red-500 text-white rounded p-1 shadow z-50 pointer-events-auto"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                  <div
+                    className="absolute -bottom-2 -right-2 w-4 h-4 bg-primary rounded-full cursor-nwse-resize shadow pointer-events-auto"
+                    onPointerDown={(e) => {
+                      e.stopPropagation();
+                      setResizingAnnId(ann.id);
+                      (e.target as HTMLElement).setPointerCapture(e.pointerId);
+                    }}
+                    onPointerMove={(e) => {
+                      if (resizingAnnId !== ann.id) return;
+                      const { x } = getCoordinates(e);
+                      const newWidth = Math.max(20, x - sigAnn.x);
+                      const aspectRatio = sigAnn.width / sigAnn.height;
+                      updateAnnotation(ann.id, { width: newWidth, height: newWidth / aspectRatio });
+                    }}
+                    onPointerUp={(e) => {
+                      if (resizingAnnId === ann.id) {
+                        setResizingAnnId(null);
+                        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+                      }
+                    }}
+                  />
+                </>
+              )}
+            </div>
+          );
+        }
 
         if (ann.type === 'text') {
           const tAnn = ann as TextAnnotation
