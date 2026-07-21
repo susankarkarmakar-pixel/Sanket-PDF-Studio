@@ -47,11 +47,26 @@ export function ThumbnailViewer() {
     let isMounted = true
 
     const loadPdf = async () => {
+      let timeoutId: any;
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData })
-        const doc = await loadingTask.promise
+
+        // Add a timeout to catch hanging worker
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error("PDF failed to load: worker did not respond (timeout after 15s)"));
+          }, 15000);
+        });
+
+        const doc = await Promise.race([loadingTask.promise, timeoutPromise]) as pdfjsLib.PDFDocumentProxy;
+        clearTimeout(timeoutId);
+
         if (isMounted) setPdfDoc(doc)
-      } catch (err) {
+      } catch (err: any) {
+        clearTimeout(timeoutId);
+        console.error('Thumbnail PDF loading error', err)
+      }
+    } catch (err) {
         console.error('Thumbnail PDF loading error', err)
       }
     }

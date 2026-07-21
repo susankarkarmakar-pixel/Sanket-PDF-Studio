@@ -64,16 +64,31 @@ export function PDFViewer() {
     if (!pdfData || !pdfViewer || !eventBus) return
 
     const loadDocument = async () => {
+      let timeoutId: any;
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData })
-        const doc = await loadingTask.promise
+
+        // Add a timeout to catch hanging worker
+        const timeoutPromise = new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            reject(new Error("PDF failed to load: worker did not respond (timeout after 15s)"));
+          }, 15000);
+        });
+
+        const doc = await Promise.race([loadingTask.promise, timeoutPromise]) as pdfjsLib.PDFDocumentProxy;
+        clearTimeout(timeoutId);
+
         setPdfDocument(doc)
         setNumPages(doc.numPages)
 
         pdfViewer.setDocument(doc)
-      } catch (err) {
+      } catch (err: any) {
+        clearTimeout(timeoutId);
         console.error('Error loading PDF:', err)
-        alert('Couldn\'t open this PDF: ' + err)
+        alert(`Couldn't open this PDF: ${err.message || err}`)
+      }
+    } catch (err) {
+        console.error('Error loading PDF:', err)
       }
     }
 

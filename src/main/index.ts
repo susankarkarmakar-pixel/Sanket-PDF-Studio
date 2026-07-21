@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, ipcMain, dialog } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, globalShortcut } from 'electron'
 import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
@@ -40,6 +40,12 @@ app.whenReady().then(() => {
   app.on('browser-window-created', (_, window) => {
     optimizer.watchWindowShortcuts(window)
   })
+
+  globalShortcut.register('CommandOrControl+Shift+I', () => {
+    const win = BrowserWindow.getFocusedWindow()
+    if (win) win.webContents.toggleDevTools()
+  })
+
 
   ipcMain.handle('dialog:openFile', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
@@ -139,7 +145,13 @@ app.whenReady().then(() => {
   })
 })
 
+
+app.on('will-quit', () => {
+  globalShortcut.unregisterAll()
+})
+
 app.on('window-all-closed', () => {
+
   if (process.platform !== 'darwin') {
     app.quit()
   }
