@@ -87,9 +87,6 @@ export function PDFViewer() {
         console.error('Error loading PDF:', err)
         alert(`Couldn't open this PDF: ${err.message || err}`)
       }
-    } catch (err) {
-        console.error('Error loading PDF:', err)
-      }
     }
 
     loadDocument()

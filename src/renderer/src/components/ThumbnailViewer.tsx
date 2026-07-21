@@ -66,9 +66,6 @@ export function ThumbnailViewer() {
         clearTimeout(timeoutId);
         console.error('Thumbnail PDF loading error', err)
       }
-    } catch (err) {
-        console.error('Thumbnail PDF loading error', err)
-      }
     }
     loadPdf()
     return () => { isMounted = false }
