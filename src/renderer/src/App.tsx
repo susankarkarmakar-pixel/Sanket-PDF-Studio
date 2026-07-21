@@ -52,7 +52,7 @@ function App() {
         <main className="flex-1 overflow-hidden relative bg-gray-200 dark:bg-gray-800">
           <PDFViewer />
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-200 dark:bg-gray-800 p-8">
+          {!useAppStore.getState().pdfData && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-200 dark:bg-gray-800 p-8">
             <h1 className="text-4xl font-bold text-gray-400 mb-8">Sanket PDF Studio</h1>
 
             <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md w-full max-w-2xl">
@@ -106,6 +106,7 @@ function App() {
             </div>
           </div>
 
+          )}
         </main>
       </div>
       {isDragging && (

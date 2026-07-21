@@ -54,7 +54,7 @@ app.whenReady().then(() => {
     try {
       const filePath = filePaths[0]
       const data = fs.readFileSync(filePath)
-      return { path: filePath, data: data } // Send buffer directly over IPC
+      return { path: filePath, data: new Uint8Array(data) }
     } catch (err) {
       console.error('Failed to read file:', err)
       return null
@@ -64,7 +64,7 @@ app.whenReady().then(() => {
   ipcMain.handle('fs:readFile', async (_, filePath: string) => {
      try {
        const data = fs.readFileSync(filePath)
-       return { path: filePath, data: data } // Send buffer directly over IPC
+       return { path: filePath, data: new Uint8Array(data) }
      } catch (err) {
        console.error('Failed to read file:', err)
        return null

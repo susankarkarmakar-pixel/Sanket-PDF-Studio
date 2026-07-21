@@ -6,7 +6,7 @@ import { useAppStore } from '../store'
 import { createPortal } from 'react-dom'
 import { AnnotationLayer } from '../features/annotate/AnnotationLayer'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = './pdf.worker.mjs'
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString()
 
 export function PDFViewer() {
   const containerRef = useRef<HTMLDivElement>(null)
@@ -73,6 +73,7 @@ export function PDFViewer() {
         pdfViewer.setDocument(doc)
       } catch (err) {
         console.error('Error loading PDF:', err)
+        alert('Couldn\'t open this PDF: ' + err)
       }
     }
 
