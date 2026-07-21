@@ -61,10 +61,12 @@ export function PDFViewer() {
   }, [])
 
   useEffect(() => {
+    console.log('[TRACE] 4. PDFViewer effect fired, pdfData present:', !!pdfData);
     if (!pdfData || !pdfViewer || !eventBus) return
 
     const loadDocument = async () => {
       let timeoutId: any;
+      console.log('[TRACE] 6. calling getDocument');
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData })
 
@@ -78,6 +80,7 @@ export function PDFViewer() {
         const doc = await Promise.race([loadingTask.promise, timeoutPromise]) as pdfjsLib.PDFDocumentProxy;
         clearTimeout(timeoutId);
 
+        console.log('[TRACE] 7. getDocument resolved, pages:', doc.numPages);
         setPdfDocument(doc)
         setNumPages(doc.numPages)
 
@@ -89,6 +92,7 @@ export function PDFViewer() {
       }
     }
 
+    console.log('[TRACE] 5. calling loadDocument');
     loadDocument()
 
     return () => {

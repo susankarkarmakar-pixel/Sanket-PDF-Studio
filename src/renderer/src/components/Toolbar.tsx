@@ -41,8 +41,11 @@ export function Toolbar() {
   const [showSettings, setShowSettings] = useState(false)
 
   const handleOpenFile = async () => {
+    console.log('[TRACE] 1. Open File clicked');
     const file = await window.api.openFile()
+    console.log('[TRACE] 2. openFile resolved', file?.path, file?.data?.constructor?.name, file?.data?.length);
     if (file) {
+      console.log('[TRACE] 3. setPdf called');
       setPdf(file.path, file.data)
       useAppStore.getState().addRecentFile(file.path, file.path.split(/[\\/]/).pop() || 'Unknown')
     }

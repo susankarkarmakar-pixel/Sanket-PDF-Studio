@@ -68,7 +68,7 @@ export function SettingsModal({ onClose }: SettingsModalProps) {
           <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
             <h3 className="font-semibold text-lg">About</h3>
             <p className="text-sm text-gray-500 mt-1">Sanket PDF Studio</p>
-            <p className="text-sm text-gray-500">Version 1.0.0</p>
+            <p className="text-sm text-gray-500">Version 1.0.0, Susankar Karmakar</p>
           </div>
         </div>
 

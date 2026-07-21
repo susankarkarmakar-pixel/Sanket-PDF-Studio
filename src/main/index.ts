@@ -48,6 +48,7 @@ app.whenReady().then(() => {
 
 
   ipcMain.handle('dialog:openFile', async () => {
+    console.log('[TRACE-MAIN] handler invoked');
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile'],
       filters: [{ name: 'PDF Documents', extensions: ['pdf'] }]
@@ -59,7 +60,10 @@ app.whenReady().then(() => {
 
     try {
       const filePath = filePaths[0]
+      console.log('[TRACE-MAIN] file read, before readFileSync');
       const data = fs.readFileSync(filePath)
+      console.log('[TRACE-MAIN] file read, bytes:', data.length);
+      console.log('[TRACE-MAIN] returning to renderer');
       return { path: filePath, data: new Uint8Array(data) }
     } catch (err) {
       console.error('Failed to read file:', err)
