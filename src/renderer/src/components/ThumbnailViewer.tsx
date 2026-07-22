@@ -49,7 +49,7 @@ export function ThumbnailViewer() {
     const loadPdf = async () => {
       let timeoutId: any;
       try {
-        const loadingTask = pdfjsLib.getDocument({ data: pdfData })
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
 
         // Add a timeout to catch hanging worker
         const timeoutPromise = new Promise((_, reject) => {
