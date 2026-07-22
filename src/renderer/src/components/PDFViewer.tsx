@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
 import { EventBus, PDFFindController, PDFLinkService, PDFViewer as PDFJSViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
 import 'pdfjs-dist/web/pdf_viewer.css'
@@ -18,6 +18,7 @@ export function PDFViewer() {
   const [eventBus, setEventBus] = useState<EventBus | null>(null)
 
   const [pageViews, setPageViews] = useState<{ id: number, element: HTMLElement, scale: number, width: number, height: number }[]>([])
+  const loadedDataRef = useRef<Uint8Array | null>(null)
 
 
   const {
@@ -68,11 +69,13 @@ export function PDFViewer() {
 
   useEffect(() => {
     if (!pdfData || !pdfViewer || !eventBus) return
+    if (loadedDataRef.current === pdfData) return // already loaded/loading this exact data
+    loadedDataRef.current = pdfData
 
     const loadDocument = async () => {
       let timeoutId: any;
       try {
-        const loadingTask = pdfjsLib.getDocument({ data: pdfData })
+        const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
 
         // Add a timeout to catch hanging worker
         const timeoutPromise = new Promise((_, reject) => {
