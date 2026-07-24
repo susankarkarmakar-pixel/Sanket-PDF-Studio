@@ -3,6 +3,17 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 
+// Polyfill for Map.prototype.getOrInsertComputed (required by pdfjs-dist 4.0+)
+if (!(Map.prototype as any).getOrInsertComputed) {
+  (Map.prototype as any).getOrInsertComputed = function (key: any, fallback: () => any) {
+    if (this.has(key)) return this.get(key);
+    const value = fallback();
+    this.set(key, value);
+    return value;
+  };
+}
+
+
 function createWindow(): void {
   const mainWindow = new BrowserWindow({
     width: 1024,
