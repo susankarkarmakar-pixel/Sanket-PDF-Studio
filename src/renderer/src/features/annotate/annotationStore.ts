@@ -1,6 +1,6 @@
 import { create } from 'zustand'
 
-export type AnnotationTool = 'pointer' | 'highlight' | 'underline' | 'draw' | 'text' | 'sticky' | 'signature'
+export type AnnotationTool = 'pointer' | 'highlight' | 'underline' | 'draw' | 'text' | 'sticky' | 'signature' | 'redact'
 
 export interface BaseAnnotation {
   id: string
@@ -44,7 +44,14 @@ export interface SignatureAnnotation extends BaseAnnotation {
   dataUrl: string
 }
 
-export type Annotation = HighlightAnnotation | DrawAnnotation | TextAnnotation | StickyAnnotation | SignatureAnnotation
+
+export interface RedactAnnotation extends BaseAnnotation {
+  type: 'redact'
+  rects: { x: number, y: number, width: number, height: number }[]
+}
+
+export type Annotation = HighlightAnnotation | DrawAnnotation | TextAnnotation | StickyAnnotation | SignatureAnnotation | RedactAnnotation
+
 
 interface AnnotationState {
   currentTool: AnnotationTool

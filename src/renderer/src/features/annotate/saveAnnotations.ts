@@ -1,5 +1,6 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
-import { Annotation, HighlightAnnotation, DrawAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation } from './annotationStore'
+import { Annotation, HighlightAnnotation, DrawAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation, RedactAnnotation } from './annotationStore'
+import * as pdfjsLib from 'pdfjs-dist'
 
 // Helper to convert #rrggbb to pdf-lib rgb
 const getPdfRgb = (hex: string) => {
@@ -22,7 +23,84 @@ export const flattenAnnotations = async (
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
   const pages = pdfDoc.getPages()
 
+  // --- REDACTION LOGIC ---
+  const redactionAnns = annotations.filter((a): a is RedactAnnotation => a.type === 'redact')
+
+  if (redactionAnns.length > 0) {
+    const pagesWithRedactions = new Set(redactionAnns.map(a => a.page))
+
+    // We need to render pages via pdfjs to get images, then wipe and replace the page in pdf-lib
+    const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice() })
+    const pdfjsDoc = await loadingTask.promise
+
+    for (const pageNum of pagesWithRedactions) {
+      const pageIndex = pageNum - 1
+      if (pageIndex < 0 || pageIndex >= pages.length) continue
+
+      const pdfjsPage = await pdfjsDoc.getPage(pageNum)
+
+      // Calculate high-res viewport for good print quality (e.g. 2.0 or 3.0 scale)
+      const scale = 2.0
+      const viewport = pdfjsPage.getViewport({ scale })
+
+      const canvas = document.createElement('canvas')
+      canvas.width = viewport.width
+      canvas.height = viewport.height
+      const ctx = canvas.getContext('2d')
+      if (!ctx) continue
+
+      // Render the page onto the canvas
+      await pdfjsPage.render({
+        canvasContext: ctx,
+        canvas: canvas,
+        viewport: viewport
+      }).promise
+
+      // Draw black boxes over redacted areas
+      const pageRedactions = redactionAnns.filter(a => a.page === pageNum)
+      ctx.fillStyle = '#000000'
+      for (const ann of pageRedactions) {
+        for (const rect of ann.rects) {
+          ctx.fillRect(rect.x * scale, rect.y * scale, rect.width * scale, rect.height * scale)
+        }
+      }
+
+      // Convert canvas to image
+      // JPEG is faster and smaller for full-page documents than PNG
+      const imgDataUrl = canvas.toDataURL('image/jpeg', 0.95)
+      const base64Data = imgDataUrl.split(',')[1]
+      const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
+
+      const pdfImage = await pdfDoc.embedJpg(imageBytes)
+
+      const page = pages[pageIndex]
+      const { width, height } = page.getSize()
+
+      // The critical part of redaction:
+      // Instead of drawing the image *over* the content, we must replace the page content stream,
+      // or at least clear all existing operators. Since pdf-lib doesn't easily expose "clear page",
+      // the safest way to ensure no vector text remains is to replace the page entirely.
+
+      const newPage = pdfDoc.insertPage(pageIndex + 1, [width, height])
+      newPage.drawImage(pdfImage, {
+        x: 0,
+        y: 0,
+        width,
+        height,
+      })
+
+      // Remove the original page
+      pdfDoc.removePage(pageIndex)
+
+      // Update the pages array reference for subsequent non-redaction annotations
+      pages[pageIndex] = newPage
+    }
+  }
+  // --- END REDACTION LOGIC ---
+
   for (const ann of annotations) {
+    if (ann.type === 'redact') continue // handled above
+
     // Page index is 0-based in pdf-lib, but our page numbers are 1-based
     const pageIndex = ann.page - 1
     if (pageIndex < 0 || pageIndex >= pages.length) continue

@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { useAnnotationStore, DrawAnnotation, HighlightAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation } from './annotationStore'
+import { useAnnotationStore, DrawAnnotation, HighlightAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation, RedactAnnotation } from './annotationStore'
 import { Trash2 } from 'lucide-react'
 
 interface AnnotationLayerProps {
@@ -57,7 +57,7 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
     if (currentTool === 'draw') {
       setIsDrawing(true)
       setCurrentPath([{ x, y }])
-    } else if (currentTool === 'highlight' || currentTool === 'underline') {
+    } else if (currentTool === 'highlight' || currentTool === 'underline' || currentTool === 'redact') {
       setIsDrawing(true)
       setStartPoint({ x, y })
       setCurrentRect({ x, y, width: 0, height: 0 })
@@ -92,7 +92,7 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
 
     if (currentTool === 'draw') {
       setCurrentPath(prev => [...prev, { x, y }])
-    } else if ((currentTool === 'highlight' || currentTool === 'underline') && startPoint) {
+    } else if ((currentTool === 'highlight' || currentTool === 'underline' || currentTool === 'redact') && startPoint) {
       setCurrentRect({
         x: Math.min(startPoint.x, x),
         y: Math.min(startPoint.y, y),
@@ -194,14 +194,14 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
             strokeLinejoin="round"
           />
         )}
-        {(currentTool === 'highlight' || currentTool === 'underline') && currentRect && (
+        {(currentTool === 'highlight' || currentTool === 'underline' || currentTool === 'redact') && currentRect && (
           <rect
             x={currentRect.x * scale}
-            y={currentTool === 'highlight' ? currentRect.y * scale : (currentRect.y + currentRect.height) * scale - (2*scale)}
+            y={currentTool === 'highlight' || currentTool === 'redact' ? currentRect.y * scale : (currentRect.y + currentRect.height) * scale - (2*scale)}
             width={currentRect.width * scale}
-            height={currentTool === 'highlight' ? currentRect.height * scale : 2 * scale}
-            fill={currentTool === 'highlight' ? currentColor : 'transparent'}
-            fillOpacity={0.3}
+            height={currentTool === 'highlight' || currentTool === 'redact' ? currentRect.height * scale : 2 * scale}
+            fill={currentTool === 'highlight' ? currentColor : (currentTool === 'redact' ? '#000000' : 'transparent')}
+            fillOpacity={currentTool === 'redact' ? 1.0 : 0.3}
             stroke={currentTool === 'underline' ? currentColor : 'none'}
             strokeWidth={currentTool === 'underline' ? 2 * scale : 0}
           />
@@ -210,6 +210,45 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
 
       {/* HTML based annotations (Text, Sticky Notes) and Selection Overlays */}
       {pageAnnotations.map(ann => {
+        if (ann.type === 'redact') {
+          const rAnn = ann as RedactAnnotation;
+          const isSelected = selectedAnnotationId === ann.id;
+          return (
+            <div key={ann.id}>
+              {rAnn.rects.map((r, i) => (
+                <div
+                  key={i}
+                  className={`absolute bg-black ${isSelected ? 'ring-2 ring-red-500' : ''}`}
+                  style={{
+                    left: r.x * scale,
+                    top: r.y * scale,
+                    width: r.width * scale,
+                    height: r.height * scale,
+                    pointerEvents: currentTool === 'pointer' ? 'auto' : 'none'
+                  }}
+                  onClick={(e) => { e.stopPropagation(); if (currentTool === 'pointer') setSelectedAnnotationId(ann.id) }}
+                />
+              ))}
+              {isSelected && (
+                <div
+                  className="absolute pointer-events-auto"
+                  style={{
+                    left: (rAnn.rects[0].x * scale) - 5,
+                    top: (rAnn.rects[0].y * scale) - 5,
+                  }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={() => deleteAnnotation(ann.id)}
+                    className="absolute -top-8 -right-4 bg-red-500 text-white rounded p-1 shadow z-50"
+                  >
+                    <Trash2 size={12} />
+                  </button>
+                </div>
+              )}
+            </div>
+          )
+        }
         const isSelected = selectedAnnotationId === ann.id
 
 
@@ -377,7 +416,7 @@ export function AnnotationLayer({ pageNum, scale, width, height }: AnnotationLay
         }
 
         // Selection overlay for path/rects
-        if (isSelected && (ann.type === 'draw' || ann.type === 'highlight' || ann.type === 'underline')) {
+        if (isSelected && (ann.type === 'draw' || ann.type === 'highlight' || ann.type === 'underline' || ann.type === 'redact')) {
            // Calculate bounding box
            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity
            if (ann.type === 'draw') {

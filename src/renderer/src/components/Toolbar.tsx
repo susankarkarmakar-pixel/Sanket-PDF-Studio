@@ -68,6 +68,13 @@ export function Toolbar() {
         <button
           onClick={async () => {
             if (!pdfData) return
+
+            const hasRedactions = annotations.some(a => a.type === 'redact')
+            if (hasRedactions) {
+               const proceed = confirm("This will permanently remove content in the marked areas from the redacted page(s). This cannot be undone once saved. Continue?")
+               if (!proceed) return
+            }
+
             setIsSaving(true)
             try {
               const newPdfData = await flattenAnnotations(pdfData, annotations)
