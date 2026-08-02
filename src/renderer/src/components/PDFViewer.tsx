@@ -214,13 +214,18 @@ export function PDFViewer() {
       <style>{`
         .page {
           margin: 10px auto !important;
-          border-radius: 4px;
-          box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+          border-radius: 8px;
+          box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0,0,0,0.05);
           border: none !important;
           background-color: white;
+          overflow: hidden;
         }
         .dark .page {
-          filter: invert(90%) hue-rotate(180deg);
+          filter: invert(92%) hue-rotate(180deg);
+        }
+        .dark .page img, .dark .page canvas {
+          /* Prevent images and rasterized redactions from looking black/inverted in dark mode */
+          filter: invert(100%) hue-rotate(180deg);
         }
         .dark .textLayer {
           filter: invert(100%) hue-rotate(180deg);

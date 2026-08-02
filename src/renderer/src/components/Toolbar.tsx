@@ -49,7 +49,7 @@ export function Toolbar() {
   }
 
   return (
-    <header className="h-14 bg-[var(--color-panel-light)] dark:bg-[var(--color-panel-dark)] border-b border-gray-300 dark:border-gray-700 flex items-center justify-between px-4 shrink-0">
+    <header className="h-14 glass flex items-center justify-between px-4 shrink-0 z-50 shadow-sm">
       <div className="flex items-center gap-2">
         <button
           onClick={() => window.api.print()}
