@@ -49,7 +49,7 @@ export function Toolbar() {
   }
 
   return (
-    <header className="h-14 bg-[var(--color-panel-light)] dark:bg-[var(--color-panel-dark)] border-b border-gray-300 dark:border-gray-700 flex items-center justify-between px-4 shrink-0">
+    <header className="h-14 glass flex items-center justify-between px-4 shrink-0 z-50 shadow-sm">
       <div className="flex items-center gap-2">
         <button
           onClick={() => window.api.print()}
@@ -68,6 +68,13 @@ export function Toolbar() {
         <button
           onClick={async () => {
             if (!pdfData) return
+
+            const hasRedactions = annotations.some(a => a.type === 'redact')
+            if (hasRedactions) {
+               const proceed = confirm("This will permanently remove content in the marked areas from the redacted page(s). This cannot be undone once saved. Continue?")
+               if (!proceed) return
+            }
+
             setIsSaving(true)
             try {
               const newPdfData = await flattenAnnotations(pdfData, annotations)

@@ -8,6 +8,7 @@ Designed for professionals, students, and government offices, it provides a fast
 
 - 📖 Fast PDF Viewer
 - ✏️ PDF Annotation
+- ⬛ True Redaction (permanently removes sensitive content)
 - 📝 Text Editing
 - 🔍 Full Text Search
 - 📑 Thumbnail Navigation

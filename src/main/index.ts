@@ -14,7 +14,29 @@ if (!(Map.prototype as any).getOrInsertComputed) {
 }
 
 
+
+let fileToOpenOnStartup: string | null = null;
+if (process.argv.length >= 2) {
+  const arg = process.argv[process.argv.length - 1];
+  if (arg.toLowerCase().endsWith('.pdf')) {
+    fileToOpenOnStartup = arg;
+  }
+}
+
+app.on('open-file', (event, path) => {
+  event.preventDefault();
+  if (app.isReady()) {
+    const wins = BrowserWindow.getAllWindows();
+    if (wins.length > 0) {
+      wins[0].webContents.send('open-file-from-os', path);
+    }
+  } else {
+    fileToOpenOnStartup = path;
+  }
+});
+
 function createWindow(): void {
+
   const mainWindow = new BrowserWindow({
     width: 1024,
     height: 768,
@@ -29,9 +51,15 @@ function createWindow(): void {
     }
   })
 
+
   mainWindow.on('ready-to-show', () => {
     mainWindow.show()
+    if (fileToOpenOnStartup) {
+      mainWindow.webContents.send('open-file-from-os', fileToOpenOnStartup);
+      fileToOpenOnStartup = null;
+    }
   })
+
 
   mainWindow.webContents.setWindowOpenHandler((details) => {
     shell.openExternal(details.url)

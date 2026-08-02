@@ -1,4 +1,4 @@
-import { MousePointer2, Highlighter, Underline, PenTool, Type, StickyNote } from 'lucide-react'
+import { MousePointer2, Highlighter, Underline, PenTool, Type, StickyNote, Eraser } from 'lucide-react'
 import { useAnnotationStore, AnnotationTool } from './annotationStore'
 import clsx from 'clsx'
 
@@ -9,6 +9,7 @@ const TOOLS: { id: AnnotationTool, icon: any, label: string }[] = [
   { id: 'draw', icon: PenTool, label: 'Draw' },
   { id: 'text', icon: Type, label: 'Text' },
   { id: 'sticky', icon: StickyNote, label: 'Sticky Note' },
+  { id: 'redact', icon: Eraser, label: 'Redact' },
 ]
 
 const COLORS = [

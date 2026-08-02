@@ -12,6 +12,17 @@ function App() {
   useEffect(() => {
     // Load settings
     loadSettings()
+
+    // Listen for files opened directly from OS
+    if (window.api.onOpenFileFromOS) {
+       window.api.onOpenFileFromOS(async (filePath) => {
+          const fileData = await window.api.readFile(filePath)
+          if (fileData) {
+            setPdf(fileData.path, fileData.data)
+            useAppStore.getState().addRecentFile(fileData.path, filePath.split(/[\\/]/).pop() || 'Unknown')
+          }
+       })
+    }
   }, [])
 
   const onDragOver = (e: React.DragEvent) => {
@@ -52,10 +63,10 @@ function App() {
         <main className="flex-1 overflow-hidden relative bg-gray-200 dark:bg-gray-800">
           <PDFViewer />
 
-          {!useAppStore.getState().pdfData && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-200 dark:bg-gray-800 p-8">
+          {!useAppStore.getState().pdfData && (<div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100/80 dark:bg-gray-900/80 backdrop-blur-md p-8 z-40">
             <h1 className="text-4xl font-bold text-gray-400 mb-8">Sanket PDF Studio</h1>
 
-            <div className="bg-white dark:bg-gray-700 p-6 rounded-lg shadow-md w-full max-w-2xl">
+            <div className="glass p-8 rounded-2xl shadow-xl w-full max-w-2xl border border-white/20">
               <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">Recent Files</h2>
 
               {useAppStore.getState().recentFiles.length === 0 ? (
