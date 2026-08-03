@@ -1,4 +1,5 @@
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { useAppStore } from '../../store'
+import { PDFDocument, rgb, StandardFonts, degrees } from 'pdf-lib'
 import { Annotation, HighlightAnnotation, DrawAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation, RedactAnnotation } from './annotationStore'
 import * as pdfjsLib from 'pdfjs-dist'
 
@@ -97,6 +98,17 @@ export const flattenAnnotations = async (
     }
   }
   // --- END REDACTION LOGIC ---
+
+  // --- ROTATION LOGIC ---
+  const rotations = useAppStore.getState().pageRotations;
+  for (let i = 0; i < pages.length; i++) {
+    const rotate = rotations[i + 1] || 0;
+    if (rotate !== 0) {
+      const current = pages[i].getRotation().angle;
+      pages[i].setRotation(degrees((current + rotate) % 360));
+    }
+  }
+  // --- END ROTATION LOGIC ---
 
   for (const ann of annotations) {
     if (ann.type === 'redact') continue // handled above

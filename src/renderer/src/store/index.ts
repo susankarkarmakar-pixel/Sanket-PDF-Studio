@@ -26,6 +26,8 @@ interface AppState {
   clearSelectedPagesForExtraction: () => void
   setPageOrder: (order: number[] | null) => void
   setPdf: (path: string | null, data: Uint8Array | null) => void
+  pageRotations: Record<number, number>
+  setPageRotation: (page: number, rotation: number) => void
 
   setScale: (scale: ScaleType | ((prev: ScaleType) => ScaleType)) => void
   setCurrentPage: (page: number) => void
@@ -76,6 +78,7 @@ export const useAppStore = create<AppState>((set) => ({
     }))
   },
 
+  pageRotations: {},
   selectedPagesForExtraction: [],
   pageOrder: null,
   togglePageSelection: (page, multi) => set((state) => {
@@ -89,7 +92,8 @@ export const useAppStore = create<AppState>((set) => ({
   }),
   clearSelectedPagesForExtraction: () => set({ selectedPagesForExtraction: [] }),
   setPageOrder: (order) => set({ pageOrder: order }),
-  setPdf: (path, data) => set((state) => ({ pdfPath: path, pdfData: data, currentPage: 1, scale: state.defaultZoom, pageOrder: null, selectedPagesForExtraction: [] })),
+  setPageRotation: (page, rotation) => set((state) => ({ pageRotations: { ...state.pageRotations, [page]: rotation } })),
+  setPdf: (path, data) => set((state) => ({ pdfPath: path, pdfData: data, currentPage: 1, scale: state.defaultZoom, pageOrder: null, selectedPagesForExtraction: [], pageRotations: {} })),
 
   setScale: (scale) => set((state) => ({ scale: typeof scale === 'function' ? scale(state.scale) : scale })),
   setCurrentPage: (currentPage) => set({ currentPage }),

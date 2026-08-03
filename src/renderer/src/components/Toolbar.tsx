@@ -1,5 +1,5 @@
 import { useAppStore } from '../store'
-import { FolderOpen, Settings, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer, Save } from 'lucide-react'
+import { FolderOpen, Settings, RotateCw, RotateCcw, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer, Save } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AnnotationToolbar } from '../features/annotate/AnnotationToolbar'
 import { SignatureMenu } from '../features/signature/SignatureMenu'
@@ -130,6 +130,31 @@ export function Toolbar() {
           </div>
         )}
 
+        <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
+        <button
+          onClick={() => {
+            if (pdfData && numPages > 0) {
+              window.dispatchEvent(new CustomEvent('page-rotate-request', { detail: { page: currentPage, direction: -90 } }))
+            }
+          }}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+          title="Rotate Page Left"
+          disabled={!pdfData}
+        >
+          <RotateCcw size={18} />
+        </button>
+        <button
+          onClick={() => {
+            if (pdfData && numPages > 0) {
+              window.dispatchEvent(new CustomEvent('page-rotate-request', { detail: { page: currentPage, direction: 90 } }))
+            }
+          }}
+          className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+          title="Rotate Page Right"
+          disabled={!pdfData}
+        >
+          <RotateCw size={18} />
+        </button>
         <div className="h-6 w-px bg-gray-300 dark:bg-gray-700" />
 
         <div className="flex items-center gap-1">
