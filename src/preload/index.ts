@@ -22,7 +22,13 @@ const api = {
   setSetting: (key: string, value: any) => ipcRenderer.invoke('settings:set', key, value),
   onOpenFileFromOS: (callback: (path: string) => void) => {
     ipcRenderer.on('open-file-from-os', (_, path) => callback(path))
-  }
+  },
+  flattenPdf: (pdfData: Uint8Array, annotations: any[], deletedPages: number[], pageOrder: number[], rotations: Record<number, number>, redactionImages: any[]) => ipcRenderer.invoke('pdf:flatten', pdfData, annotations, deletedPages, pageOrder, rotations, redactionImages),
+  mergePdfs: (fileDatas: Uint8Array[]) => ipcRenderer.invoke('pdf:merge', fileDatas),
+  splitPdf: (pdfData: Uint8Array, rangesString: string) => ipcRenderer.invoke('pdf:split', pdfData, rangesString),
+  rearrangePdf: (pdfData: Uint8Array, newOrder: number[]) => ipcRenderer.invoke('pdf:rearrange', pdfData, newOrder),
+  extractPages: (pdfData: Uint8Array, pageNumbers: number[]) => ipcRenderer.invoke('pdf:extract', pdfData, pageNumbers)
+
 }
 
 if (process.contextIsolated) {

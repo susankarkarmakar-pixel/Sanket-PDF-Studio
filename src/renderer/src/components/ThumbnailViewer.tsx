@@ -1,9 +1,10 @@
 import { useEffect, useState, memo, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
+import { RotateCw, RotateCcw, Trash2, Undo } from 'lucide-react'
 import { useAppStore } from '../store'
 
 export function ThumbnailViewer() {
-  const { pdfData, numPages, currentPage, selectedPagesForExtraction, togglePageSelection, pageOrder, setPageOrder } = useAppStore()
+  const { pdfData, numPages, currentPage, selectedPagesForExtraction, togglePageSelection, pageOrder, setPageOrder, deletedPages, pageRotations, setPageRotation, togglePageDelete } = useAppStore()
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -112,6 +113,10 @@ export function ThumbnailViewer() {
               isActive={pageNum === currentPage}
               isSelected={selectedPagesForExtraction.includes(pageNum)}
               onSelect={(multi) => togglePageSelection(pageNum, multi)}
+              isDeleted={deletedPages.includes(pageNum)}
+              rotation={pageRotations[pageNum] || 0}
+              onRotate={(dir) => setPageRotation(pageNum, (pageRotations[pageNum] || 0) + dir)}
+              onToggleDelete={() => togglePageDelete(pageNum)}
             />
           </div>
         ))}
@@ -125,7 +130,11 @@ const Thumbnail = memo(({
   pdfDoc,
   isActive,
   isSelected,
-  onSelect
+  onSelect,
+  isDeleted,
+  rotation,
+  onRotate,
+  onToggleDelete
 }: {
   pageNum: number
   index: number
@@ -133,6 +142,10 @@ const Thumbnail = memo(({
   isActive: boolean
   isSelected?: boolean
   onSelect?: (multi: boolean) => void
+  isDeleted?: boolean
+  rotation?: number
+  onRotate?: (direction: number) => void
+  onToggleDelete?: () => void
 }) => {
   const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null)
 
@@ -183,15 +196,46 @@ const Thumbnail = memo(({
 
   return (
     <div
-      className={`flex flex-col items-center justify-center gap-1 cursor-pointer p-2 mx-2 rounded-lg transition-colors h-[200px] ${
+      className={`relative group flex flex-col items-center justify-center gap-1 cursor-pointer p-2 mx-2 rounded-lg transition-colors h-[200px] ${
         isSelected ? "bg-primary/20 ring-2 ring-primary" : isActive ? 'bg-gray-200 dark:bg-gray-700 ring-2 ring-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}
       onClick={handleClick}
     >
+      {isDeleted && (
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+          <div className="bg-red-500 text-white font-bold px-2 py-1 rounded text-sm transform -rotate-12 shadow">DELETED</div>
+        </div>
+      )}
+      {/* Action Overlay */}
+      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button
+          onClick={(e) => { e.stopPropagation(); if (onRotate) onRotate(-90); }}
+          className="p-1 bg-white dark:bg-gray-800 shadow rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+          title="Rotate Left"
+        >
+          <RotateCcw size={14} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); if (onRotate) onRotate(90); }}
+          className="p-1 bg-white dark:bg-gray-800 shadow rounded hover:bg-gray-100 dark:hover:bg-gray-700"
+          title="Rotate Right"
+        >
+          <RotateCw size={14} />
+        </button>
+        <button
+          onClick={(e) => { e.stopPropagation(); if (onToggleDelete) onToggleDelete(); }}
+          className="p-1 bg-white dark:bg-gray-800 shadow rounded hover:bg-red-100 dark:hover:bg-red-900 text-red-500"
+          title={isDeleted ? "Restore Page" : "Delete Page"}
+        >
+          {isDeleted ? <Undo size={14} /> : <Trash2 size={14} />}
+        </button>
+      </div>
+
       <div className="flex-1 flex items-center justify-center min-h-0 w-full overflow-hidden">
         <canvas
           ref={setCanvasRef}
-          className="shadow-sm rounded border border-gray-300 dark:border-gray-600 bg-white max-h-full max-w-full object-contain"
+          className={`shadow-sm rounded border border-gray-300 dark:border-gray-600 bg-white max-h-full max-w-full object-contain transition-transform duration-300 ${isDeleted ? "opacity-30" : ""}`}
+          style={{ transform: `rotate(${rotation || 0}deg)` }}
         />
       </div>
       <span className="text-xs text-gray-500 mt-1">{pageNum}</span>

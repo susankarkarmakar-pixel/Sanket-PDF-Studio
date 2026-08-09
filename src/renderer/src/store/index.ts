@@ -22,12 +22,14 @@ interface AppState {
 
   selectedPagesForExtraction: number[]
   pageOrder: number[] | null
+  pageRotations: Record<number, number>
+  setPageRotation: (page: number, rotation: number) => void
+  deletedPages: number[]
+  togglePageDelete: (page: number) => void
   togglePageSelection: (page: number, multi: boolean) => void
   clearSelectedPagesForExtraction: () => void
   setPageOrder: (order: number[] | null) => void
   setPdf: (path: string | null, data: Uint8Array | null) => void
-  pageRotations: Record<number, number>
-  setPageRotation: (page: number, rotation: number) => void
 
   setScale: (scale: ScaleType | ((prev: ScaleType) => ScaleType)) => void
   setCurrentPage: (page: number) => void
@@ -78,9 +80,10 @@ export const useAppStore = create<AppState>((set) => ({
     }))
   },
 
-  pageRotations: {},
   selectedPagesForExtraction: [],
   pageOrder: null,
+  pageRotations: {},
+  deletedPages: [],
   togglePageSelection: (page, multi) => set((state) => {
     if (!multi) return { selectedPagesForExtraction: [page] }
     const exists = state.selectedPagesForExtraction.includes(page)
@@ -93,7 +96,10 @@ export const useAppStore = create<AppState>((set) => ({
   clearSelectedPagesForExtraction: () => set({ selectedPagesForExtraction: [] }),
   setPageOrder: (order) => set({ pageOrder: order }),
   setPageRotation: (page, rotation) => set((state) => ({ pageRotations: { ...state.pageRotations, [page]: rotation } })),
-  setPdf: (path, data) => set((state) => ({ pdfPath: path, pdfData: data, currentPage: 1, scale: state.defaultZoom, pageOrder: null, selectedPagesForExtraction: [], pageRotations: {} })),
+  togglePageDelete: (page) => set((state) => ({ deletedPages: state.deletedPages.includes(page) ? state.deletedPages.filter(p => p !== page) : [...state.deletedPages, page] })),
+  setPdf: (path, data) => set((state) => ({ pdfPath: path, pdfData: data, currentPage: 1, scale: state.defaultZoom, pageOrder: null,
+  pageRotations: {},
+  deletedPages: [], selectedPagesForExtraction: [] })),
 
   setScale: (scale) => set((state) => ({ scale: typeof scale === 'function' ? scale(state.scale) : scale })),
   setCurrentPage: (currentPage) => set({ currentPage }),

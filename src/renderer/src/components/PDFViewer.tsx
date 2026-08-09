@@ -27,8 +27,8 @@ export function PDFViewer() {
     setCurrentPage,
     setNumPages,
     setSearchHighlightCurrent,
-    setSearchHighlightTotal
-  } = useAppStore()
+    setSearchHighlightTotal,
+    } = useAppStore()
 
   useEffect(() => {
     if (!containerNode || !viewerNode) return
@@ -129,6 +129,18 @@ export function PDFViewer() {
       const pageView = ((pdfViewer as any)?._pages)[pageNumber - 1]; // Access internal pages array
 
       if (pageView && pageView.div) {
+        const store = useAppStore.getState();
+        if (store.deletedPages.includes(pageNumber)) {
+           pageView.div.style.display = 'none';
+        } else {
+           pageView.div.style.display = '';
+        }
+
+        const rot = store.pageRotations[pageNumber] || 0;
+        if (pageView.rotation !== rot) {
+           pageView.update({ scale: pageView.scale, rotation: rot });
+        }
+
         setPageViews(prev => {
           // Check if already exists to avoid duplicates on re-render
           const existing = prev.findIndex(p => p.id === pageNumber);
@@ -180,6 +192,7 @@ export function PDFViewer() {
 
     const handlePageChangeRequest = (e: CustomEvent) => {
       if (pdfViewer) {
+        if (useAppStore.getState().deletedPages.includes(e.detail)) return;
         pdfViewer.currentPageNumber = e.detail
       }
     }

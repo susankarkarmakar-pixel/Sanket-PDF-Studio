@@ -15,6 +15,13 @@ declare global {
       print: () => Promise<boolean>
       getSettings: () => Promise<Record<string, any>>
       setSetting: (key: string, value: any) => Promise<boolean>
+      onOpenFileFromOS?: (callback: (path: string) => void) => void
+
+      flattenPdf: (pdfData: Uint8Array, annotations: any[], deletedPages: number[], pageOrder: number[], rotations: Record<number, number>, redactionImages: any[]) => Promise<Uint8Array>
+      mergePdfs: (fileDatas: Uint8Array[]) => Promise<Uint8Array>
+      splitPdf: (pdfData: Uint8Array, rangesString: string) => Promise<Uint8Array[]>
+      rearrangePdf: (pdfData: Uint8Array, newOrder: number[]) => Promise<Uint8Array>
+      extractPages: (pdfData: Uint8Array, pageNumbers: number[]) => Promise<Uint8Array>
     }
   }
 }
