@@ -1,7 +1,12 @@
 import { createWorker, type LoggerMessage } from 'tesseract.js'
 import * as pdfjsLib from 'pdfjs-dist'
-import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import fontkit from '@pdf-lib/fontkit'
+import { PDFDocument, rgb } from 'pdf-lib'
 import { normalizeOcrLanguages } from './ocrLanguages'
+import sansFontUrl from './fonts/NotoSans-Regular.ttf?url'
+import bengaliFontUrl from './fonts/NotoSansBengali-Regular.ttf?url'
+import devanagariFontUrl from './fonts/NotoSansDevanagari-Regular.ttf?url'
+import cjkFontUrl from './fonts/NotoSansCJK-Regular.ttc?url'
 
 interface OcrLine {
   text: string
@@ -35,17 +40,32 @@ const renderPage = async (
   return canvas
 }
 
+const selectFontUrl = (languages: string): string => {
+  if (languages.includes('ben')) return bengaliFontUrl
+  if (languages.includes('hin')) return devanagariFontUrl
+  if (languages.includes('jpn') || languages.includes('chi_sim')) return cjkFontUrl
+  return sansFontUrl
+}
+
+const loadOcrFont = async (languages: string): Promise<Uint8Array> => {
+  const response = await fetch(selectFontUrl(languages))
+  if (!response.ok) throw new Error('Unable to load the Unicode OCR font.')
+  return new Uint8Array(await response.arrayBuffer())
+}
+
 export const ocrPdf = async (
   pdfData: Uint8Array,
   onProgress?: (progress: OcrProgress) => void,
   languages = 'eng'
 ): Promise<Uint8Array> => {
+  const languagesToUse = normalizeOcrLanguages(languages)
   const pdf = await PDFDocument.load(pdfData)
-  const font = await pdf.embedFont(StandardFonts.Helvetica)
+  pdf.registerFontkit(fontkit)
+  const font = await pdf.embedFont(await loadOcrFont(languagesToUse))
   const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
   const pdfjsDocument = await loadingTask.promise
   const totalPages = pdfjsDocument.numPages
-  const worker = await createWorker(normalizeOcrLanguages(languages), undefined, {
+  const worker = await createWorker(languagesToUse, undefined, {
     logger: (message: LoggerMessage) => {
       const page = Number(message.userJobId || 1)
       onProgress?.({
