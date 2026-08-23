@@ -1,7 +1,18 @@
 import { create } from 'zustand'
 
 export type AnnotationTool =
-  'pointer' | 'highlight' | 'underline' | 'draw' | 'text' | 'sticky' | 'signature' | 'redact'
+  | 'pointer'
+  | 'highlight'
+  | 'underline'
+  | 'draw'
+  | 'text'
+  | 'sticky'
+  | 'signature'
+  | 'redact'
+  | 'rectangle'
+  | 'ellipse'
+  | 'line'
+  | 'arrow'
 
 export interface BaseAnnotation {
   id: string
@@ -49,6 +60,14 @@ export interface RedactAnnotation extends BaseAnnotation {
   rects: { x: number; y: number; width: number; height: number }[]
 }
 
+export interface ShapeAnnotation extends BaseAnnotation {
+  type: 'rectangle' | 'ellipse' | 'line' | 'arrow'
+  x: number
+  y: number
+  width: number
+  height: number
+}
+
 export type Annotation =
   | HighlightAnnotation
   | DrawAnnotation
@@ -56,6 +75,7 @@ export type Annotation =
   | StickyAnnotation
   | SignatureAnnotation
   | RedactAnnotation
+  | ShapeAnnotation
 
 type HistoryAction = { kind: 'update'; id: string } | { kind: 'other' }
 

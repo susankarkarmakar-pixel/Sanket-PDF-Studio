@@ -3,10 +3,11 @@ import {
   useAnnotationStore,
   DrawAnnotation,
   HighlightAnnotation,
-  TextAnnotation,
-  StickyAnnotation,
+  RedactAnnotation,
+  ShapeAnnotation,
   SignatureAnnotation,
-  RedactAnnotation
+  StickyAnnotation,
+  TextAnnotation
 } from './annotationStore'
 import { Trash2 } from 'lucide-react'
 
@@ -88,7 +89,11 @@ export function AnnotationLayer({
     } else if (
       currentTool === 'highlight' ||
       currentTool === 'underline' ||
-      currentTool === 'redact'
+      currentTool === 'redact' ||
+      currentTool === 'rectangle' ||
+      currentTool === 'ellipse' ||
+      currentTool === 'line' ||
+      currentTool === 'arrow'
     ) {
       setIsDrawing(true)
       setStartPoint({ x, y })
@@ -130,7 +135,13 @@ export function AnnotationLayer({
     if (currentTool === 'draw') {
       setCurrentPath((prev) => [...prev, { x, y }])
     } else if (
-      (currentTool === 'highlight' || currentTool === 'underline' || currentTool === 'redact') &&
+      (currentTool === 'highlight' ||
+        currentTool === 'underline' ||
+        currentTool === 'redact' ||
+        currentTool === 'rectangle' ||
+        currentTool === 'ellipse' ||
+        currentTool === 'line' ||
+        currentTool === 'arrow') &&
       startPoint
     ) {
       setCurrentRect({
@@ -155,7 +166,13 @@ export function AnnotationLayer({
         path: currentPath
       } as DrawAnnotation)
     } else if (
-      (currentTool === 'highlight' || currentTool === 'underline' || currentTool === 'redact') &&
+      (currentTool === 'highlight' ||
+        currentTool === 'underline' ||
+        currentTool === 'redact' ||
+        currentTool === 'rectangle' ||
+        currentTool === 'ellipse' ||
+        currentTool === 'line' ||
+        currentTool === 'arrow') &&
       currentRect &&
       currentRect.width > 5 &&
       currentRect.height > 5
@@ -168,6 +185,27 @@ export function AnnotationLayer({
         color: currentColor,
         rects: [currentRect]
       } as HighlightAnnotation | RedactAnnotation)
+      setSelectedAnnotationId(id)
+    } else if (
+      (currentTool === 'rectangle' ||
+        currentTool === 'ellipse' ||
+        currentTool === 'line' ||
+        currentTool === 'arrow') &&
+      currentRect &&
+      currentRect.width > 5 &&
+      currentRect.height > 5
+    ) {
+      const id = crypto.randomUUID()
+      addAnnotation({
+        id,
+        page: pageNum,
+        type: currentTool,
+        color: currentColor,
+        x: currentRect.x,
+        y: currentRect.y,
+        width: currentRect.width,
+        height: currentRect.height
+      } as ShapeAnnotation)
       setSelectedAnnotationId(id)
     }
 
@@ -217,6 +255,18 @@ export function AnnotationLayer({
           if (e.target === e.currentTarget) setSelectedAnnotationId(null)
         }}
       >
+        <defs>
+          <marker
+            id="annotation-arrow"
+            markerWidth="8"
+            markerHeight="8"
+            refX="7"
+            refY="4"
+            orient="auto"
+          >
+            <path d="M0,0 L8,4 L0,8 Z" fill="currentColor" />
+          </marker>
+        </defs>
         {pageAnnotations.map((ann) => {
           if (ann.type === 'draw') {
             const d = (ann as DrawAnnotation).path
@@ -261,10 +311,73 @@ export function AnnotationLayer({
                 }}
               />
             ))
+          } else if (
+            ann.type === 'rectangle' ||
+            ann.type === 'ellipse' ||
+            ann.type === 'line' ||
+            ann.type === 'arrow'
+          ) {
+            const shape = ann as ShapeAnnotation
+            const x = shape.x * scale
+            const y = shape.y * scale
+            const shapeWidth = shape.width * scale
+            const shapeHeight = shape.height * scale
+            if (ann.type === 'line' || ann.type === 'arrow') {
+              return (
+                <line
+                  key={ann.id}
+                  x1={x}
+                  y1={y}
+                  x2={x + shapeWidth}
+                  y2={y + shapeHeight}
+                  stroke={ann.color}
+                  strokeWidth={2 * scale}
+                  markerEnd={ann.type === 'arrow' ? 'url(#annotation-arrow)' : undefined}
+                  style={{ pointerEvents: currentTool === 'pointer' ? 'stroke' : 'none' }}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setSelectedAnnotationId(ann.id)
+                  }}
+                />
+              )
+            }
+            return ann.type === 'ellipse' ? (
+              <ellipse
+                key={ann.id}
+                cx={x + shapeWidth / 2}
+                cy={y + shapeHeight / 2}
+                rx={Math.abs(shapeWidth) / 2}
+                ry={Math.abs(shapeHeight) / 2}
+                fill="transparent"
+                stroke={ann.color}
+                strokeWidth={2 * scale}
+                style={{ pointerEvents: currentTool === 'pointer' ? 'all' : 'none' }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedAnnotationId(ann.id)
+                }}
+              />
+            ) : (
+              <rect
+                key={ann.id}
+                x={x}
+                y={y}
+                width={shapeWidth}
+                height={shapeHeight}
+                fill="transparent"
+                stroke={ann.color}
+                strokeWidth={2 * scale}
+                style={{ pointerEvents: currentTool === 'pointer' ? 'all' : 'none' }}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setSelectedAnnotationId(ann.id)
+                }}
+              />
+            )
           }
           return null
         })}
-        {/* Active drawing paths/rects */}
+        {/* Active drawing paths, rectangles, and shapes */}
         {currentTool === 'draw' && currentPath.length > 0 && (
           <path
             d={currentPath
@@ -277,18 +390,25 @@ export function AnnotationLayer({
             strokeLinejoin="round"
           />
         )}
-        {(currentTool === 'highlight' || currentTool === 'underline' || currentTool === 'redact') &&
+        {(currentTool === 'highlight' ||
+          currentTool === 'underline' ||
+          currentTool === 'redact' ||
+          currentTool === 'rectangle') &&
           currentRect && (
             <rect
               x={currentRect.x * scale}
               y={
-                currentTool === 'highlight' || currentTool === 'redact'
+                currentTool === 'highlight' ||
+                currentTool === 'redact' ||
+                currentTool === 'rectangle'
                   ? currentRect.y * scale
                   : (currentRect.y + currentRect.height) * scale - 2 * scale
               }
               width={currentRect.width * scale}
               height={
-                currentTool === 'highlight' || currentTool === 'redact'
+                currentTool === 'highlight' ||
+                currentTool === 'redact' ||
+                currentTool === 'rectangle'
                   ? currentRect.height * scale
                   : 2 * scale
               }
@@ -300,10 +420,36 @@ export function AnnotationLayer({
                     : 'transparent'
               }
               fillOpacity={currentTool === 'redact' ? 1.0 : 0.3}
-              stroke={currentTool === 'underline' ? currentColor : 'none'}
-              strokeWidth={currentTool === 'underline' ? 2 * scale : 0}
+              stroke={
+                currentTool === 'underline' || currentTool === 'rectangle' ? currentColor : 'none'
+              }
+              strokeWidth={
+                currentTool === 'underline' || currentTool === 'rectangle' ? 2 * scale : 0
+              }
             />
           )}
+        {currentTool === 'ellipse' && currentRect && (
+          <ellipse
+            cx={(currentRect.x + currentRect.width / 2) * scale}
+            cy={(currentRect.y + currentRect.height / 2) * scale}
+            rx={Math.abs(currentRect.width * scale) / 2}
+            ry={Math.abs(currentRect.height * scale) / 2}
+            fill="transparent"
+            stroke={currentColor}
+            strokeWidth={2 * scale}
+          />
+        )}
+        {(currentTool === 'line' || currentTool === 'arrow') && currentRect && (
+          <line
+            x1={currentRect.x * scale}
+            y1={currentRect.y * scale}
+            x2={(currentRect.x + currentRect.width) * scale}
+            y2={(currentRect.y + currentRect.height) * scale}
+            stroke={currentColor}
+            strokeWidth={2 * scale}
+            markerEnd={currentTool === 'arrow' ? 'url(#annotation-arrow)' : undefined}
+          />
+        )}
       </svg>
 
       {/* HTML based annotations (Text, Sticky Notes) and Selection Overlays */}
@@ -532,7 +678,10 @@ export function AnnotationLayer({
           (ann.type === 'draw' ||
             ann.type === 'highlight' ||
             ann.type === 'underline' ||
-            ann.type === 'redact')
+            ann.type === 'rectangle' ||
+            ann.type === 'ellipse' ||
+            ann.type === 'line' ||
+            ann.type === 'arrow')
         ) {
           // Calculate bounding box
           let minX = Infinity,
@@ -546,13 +695,19 @@ export function AnnotationLayer({
               maxX = Math.max(maxX, p.x)
               maxY = Math.max(maxY, p.y)
             })
-          } else {
+          } else if (ann.type === 'highlight' || ann.type === 'underline') {
             ;(ann as HighlightAnnotation).rects.forEach((r) => {
               minX = Math.min(minX, r.x)
               minY = Math.min(minY, r.y)
               maxX = Math.max(maxX, r.x + r.width)
               maxY = Math.max(maxY, r.y + r.height)
             })
+          } else {
+            const shape = ann as ShapeAnnotation
+            minX = shape.x
+            minY = shape.y
+            maxX = shape.x + shape.width
+            maxY = shape.y + shape.height
           }
 
           return (

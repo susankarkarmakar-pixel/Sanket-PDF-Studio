@@ -1,5 +1,14 @@
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
-import { Annotation, HighlightAnnotation, DrawAnnotation, TextAnnotation, StickyAnnotation, SignatureAnnotation, RedactAnnotation } from './annotationStore'
+import {
+  Annotation,
+  HighlightAnnotation,
+  DrawAnnotation,
+  TextAnnotation,
+  StickyAnnotation,
+  SignatureAnnotation,
+  RedactAnnotation,
+  ShapeAnnotation
+} from './annotationStore'
 import * as pdfjsLib from 'pdfjs-dist'
 
 // Helper to convert #rrggbb to pdf-lib rgb
@@ -27,7 +36,7 @@ export const flattenAnnotations = async (
   const redactionAnns = annotations.filter((a): a is RedactAnnotation => a.type === 'redact')
 
   if (redactionAnns.length > 0) {
-    const pagesWithRedactions = new Set(redactionAnns.map(a => a.page))
+    const pagesWithRedactions = new Set(redactionAnns.map((a) => a.page))
 
     // We need to render pages via pdfjs to get images, then wipe and replace the page in pdf-lib
     const loadingTask = pdfjsLib.getDocument({ data: pdfBytes.slice() })
@@ -57,7 +66,7 @@ export const flattenAnnotations = async (
       }).promise
 
       // Draw black boxes over redacted areas
-      const pageRedactions = redactionAnns.filter(a => a.page === pageNum)
+      const pageRedactions = redactionAnns.filter((a) => a.page === pageNum)
       ctx.fillStyle = '#000000'
       for (const ann of pageRedactions) {
         for (const rect of ann.rects) {
@@ -69,7 +78,7 @@ export const flattenAnnotations = async (
       // JPEG is faster and smaller for full-page documents than PNG
       const imgDataUrl = canvas.toDataURL('image/jpeg', 0.95)
       const base64Data = imgDataUrl.split(',')[1]
-      const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
+      const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
 
       const pdfImage = await pdfDoc.embedJpg(imageBytes)
 
@@ -86,7 +95,7 @@ export const flattenAnnotations = async (
         x: 0,
         y: 0,
         width,
-        height,
+        height
       })
 
       // Remove the original page
@@ -135,11 +144,47 @@ export const flattenAnnotations = async (
       const dAnn = ann as DrawAnnotation
       if (dAnn.path.length < 2) continue
 
-      const svgPath = dAnn.path.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${height - p.y}`).join(' ')
+      const svgPath = dAnn.path
+        .map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${height - p.y}`)
+        .join(' ')
       page.drawSvgPath(svgPath, {
         borderColor: color,
-        borderWidth: 2,
+        borderWidth: 2
       })
+    } else if (
+      ann.type === 'rectangle' ||
+      ann.type === 'ellipse' ||
+      ann.type === 'line' ||
+      ann.type === 'arrow'
+    ) {
+      const shape = ann as ShapeAnnotation
+      const topY = height - shape.y
+      if (ann.type === 'rectangle') {
+        page.drawRectangle({
+          x: shape.x,
+          y: height - shape.y - shape.height,
+          width: shape.width,
+          height: shape.height,
+          borderColor: color,
+          borderWidth: 2
+        })
+      } else if (ann.type === 'ellipse') {
+        page.drawEllipse({
+          x: shape.x + shape.width / 2,
+          y: topY - shape.height / 2,
+          xScale: Math.abs(shape.width) / 2,
+          yScale: Math.abs(shape.height) / 2,
+          borderColor: color,
+          borderWidth: 2
+        })
+      } else {
+        page.drawLine({
+          start: { x: shape.x, y: topY },
+          end: { x: shape.x + shape.width, y: topY - shape.height },
+          thickness: 2,
+          color
+        })
+      }
     } else if (ann.type === 'text') {
       const tAnn = ann as TextAnnotation
       page.drawText(tAnn.text, {
@@ -150,53 +195,52 @@ export const flattenAnnotations = async (
         color: color
       })
     } else if (ann.type === 'sticky') {
-       const sAnn = ann as StickyAnnotation
-       // Draw a simple sticky note marker
-       page.drawCircle({
-         x: sAnn.x,
-         y: height - sAnn.y,
-         size: 10,
-         color: color
-       })
-       page.drawText('Note', {
-         font: helveticaFont,
-         x: sAnn.x + 15,
-         y: height - sAnn.y - 5,
-         size: 10,
-         color: rgb(0,0,0)
-       })
-       if (sAnn.text) {
-         page.drawText(sAnn.text, {
-           font: helveticaFont,
-           x: sAnn.x + 15,
-           y: height - sAnn.y - 20,
-           size: 12,
-           color: rgb(0,0,0)
-         })
-       }
-
+      const sAnn = ann as StickyAnnotation
+      // Draw a simple sticky note marker
+      page.drawCircle({
+        x: sAnn.x,
+        y: height - sAnn.y,
+        size: 10,
+        color: color
+      })
+      page.drawText('Note', {
+        font: helveticaFont,
+        x: sAnn.x + 15,
+        y: height - sAnn.y - 5,
+        size: 10,
+        color: rgb(0, 0, 0)
+      })
+      if (sAnn.text) {
+        page.drawText(sAnn.text, {
+          font: helveticaFont,
+          x: sAnn.x + 15,
+          y: height - sAnn.y - 20,
+          size: 12,
+          color: rgb(0, 0, 0)
+        })
+      }
     } else if (ann.type === 'signature') {
-       const sigAnn = ann as SignatureAnnotation
-       try {
-         // Determine image format (assume PNG due to UI constraints, but handle error)
-         const imgDataUrl = sigAnn.dataUrl
-         const base64Data = imgDataUrl.split(',')[1]
-         if (base64Data) {
-           const imageBytes = Uint8Array.from(atob(base64Data), c => c.charCodeAt(0))
-           // For now assume PNG since UI only accepts PNG / outputs PNG from canvas
-           const pdfImage = await pdfDoc.embedPng(imageBytes)
+      const sigAnn = ann as SignatureAnnotation
+      try {
+        // Determine image format (assume PNG due to UI constraints, but handle error)
+        const imgDataUrl = sigAnn.dataUrl
+        const base64Data = imgDataUrl.split(',')[1]
+        if (base64Data) {
+          const imageBytes = Uint8Array.from(atob(base64Data), (c) => c.charCodeAt(0))
+          // For now assume PNG since UI only accepts PNG / outputs PNG from canvas
+          const pdfImage = await pdfDoc.embedPng(imageBytes)
 
-           page.drawImage(pdfImage, {
-             x: sigAnn.x,
-             // Account for the height to correctly map top-left visual to bottom-left PDF coordinates
-             y: height - sigAnn.y - sigAnn.height,
-             width: sigAnn.width,
-             height: sigAnn.height,
-           })
-         }
-       } catch (err) {
-         console.error('Failed to embed signature image', err)
-       }
+          page.drawImage(pdfImage, {
+            x: sigAnn.x,
+            // Account for the height to correctly map top-left visual to bottom-left PDF coordinates
+            y: height - sigAnn.y - sigAnn.height,
+            width: sigAnn.width,
+            height: sigAnn.height
+          })
+        }
+      } catch (err) {
+        console.error('Failed to embed signature image', err)
+      }
     }
   }
 
