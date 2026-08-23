@@ -4,6 +4,7 @@ import { Sidebar } from './components/Sidebar'
 import { PDFViewer } from './components/PDFViewer'
 import { ThumbnailViewer } from './components/ThumbnailViewer'
 import { OutlineViewer } from './components/OutlineViewer'
+import { PasswordHost } from './components/PasswordHost'
 import { useAppStore } from './store'
 import { useAnnotationStore } from './features/annotate/annotationStore'
 import { FeedbackHost } from './components/FeedbackHost'
@@ -94,6 +95,7 @@ function App(): React.JSX.Element {
       onDrop={onDrop}
     >
       <FeedbackHost />
+      <PasswordHost />
       <Toolbar />
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar>

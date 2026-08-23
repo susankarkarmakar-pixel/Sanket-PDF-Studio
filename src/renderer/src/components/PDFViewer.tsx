@@ -11,6 +11,7 @@ import { useAppStore } from '../store'
 import { createPortal } from 'react-dom'
 import { AnnotationLayer } from '../features/annotate/AnnotationLayer'
 import { useFeedbackStore } from '../feedbackStore'
+import { usePasswordStore } from '../passwordStore'
 
 pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
   'pdfjs-dist/build/pdf.worker.mjs',
@@ -40,6 +41,7 @@ export function PDFViewer() {
     setSearchHighlightTotal
   } = useAppStore()
   const { notify } = useFeedbackStore()
+  const { askForPassword } = usePasswordStore()
 
   useEffect(() => {
     if (!containerNode || !viewerNode) return
@@ -87,6 +89,15 @@ export function PDFViewer() {
       let timeoutId: any
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
+        loadingTask.onPassword = (callback, reason) => {
+          void askForPassword(reason).then((password) => {
+            if (password === null) {
+              void loadingTask.destroy()
+              return
+            }
+            callback(password)
+          })
+        }
 
         // Add a timeout to catch hanging worker
         const timeoutPromise = new Promise((_, reject) => {
@@ -120,7 +131,7 @@ export function PDFViewer() {
     return () => {
       // Cleanup document if needed
     }
-  }, [pdfData, pdfViewer, eventBus, setNumPages])
+  }, [askForPassword, pdfData, pdfViewer, eventBus, notify, setNumPages])
 
   useEffect(() => {
     if (pdfViewer) {
