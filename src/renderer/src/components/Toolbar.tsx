@@ -1,5 +1,18 @@
 import { useAppStore } from '../store'
-import { FolderOpen, Settings, ZoomIn, ZoomOut, Maximize, Search, ChevronUp, ChevronDown, Printer, Save } from 'lucide-react'
+import {
+  FolderOpen,
+  Settings,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  Search,
+  ChevronUp,
+  ChevronDown,
+  Printer,
+  Save,
+  Undo2,
+  Redo2
+} from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AnnotationToolbar } from '../features/annotate/AnnotationToolbar'
 import { SignatureMenu } from '../features/signature/SignatureMenu'
@@ -8,7 +21,7 @@ import { PageToolsMenu } from '../features/merge-split/PageToolsMenu'
 import { useAnnotationStore } from '../features/annotate/annotationStore'
 import { flattenAnnotations } from '../features/annotate/saveAnnotations'
 
-export function Toolbar() {
+export function Toolbar(): React.JSX.Element {
   const {
     theme,
     setPdf,
@@ -36,11 +49,32 @@ export function Toolbar() {
     }
   }, [theme])
 
-  const { annotations } = useAnnotationStore()
+  const { annotations, history, future, undo, redo } = useAnnotationStore()
   const [isSaving, setIsSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
-  const handleOpenFile = async () => {
+  useEffect(() => {
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      const target = event.target as HTMLElement | null
+      const isEditing =
+        target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')
+      if (isEditing || !(event.ctrlKey || event.metaKey)) return
+
+      if (event.key.toLowerCase() === 'z') {
+        event.preventDefault()
+        if (event.shiftKey) redo()
+        else undo()
+      } else if (event.key.toLowerCase() === 'y') {
+        event.preventDefault()
+        redo()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [redo, undo])
+
+  const handleOpenFile = async (): Promise<void> => {
     const file = await window.api.openFile()
     if (file) {
       setPdf(file.path, file.data)
@@ -51,6 +85,24 @@ export function Toolbar() {
   return (
     <header className="h-14 glass flex items-center justify-between px-4 shrink-0 z-50 shadow-sm">
       <div className="flex items-center gap-2">
+        <button
+          onClick={undo}
+          disabled={history.length === 0}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Undo (Ctrl/Cmd+Z)"
+          aria-label="Undo"
+        >
+          <Undo2 size={20} />
+        </button>
+        <button
+          onClick={redo}
+          disabled={future.length === 0}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          title="Redo (Ctrl/Cmd+Shift+Z)"
+          aria-label="Redo"
+        >
+          <Redo2 size={20} />
+        </button>
         <button
           onClick={() => window.api.print()}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
@@ -69,10 +121,12 @@ export function Toolbar() {
           onClick={async () => {
             if (!pdfData) return
 
-            const hasRedactions = annotations.some(a => a.type === 'redact')
+            const hasRedactions = annotations.some((a) => a.type === 'redact')
             if (hasRedactions) {
-               const proceed = confirm("This will permanently remove content in the marked areas from the redacted page(s). This cannot be undone once saved. Continue?")
-               if (!proceed) return
+              const proceed = confirm(
+                'This will permanently remove content in the marked areas from the redacted page(s). This cannot be undone once saved. Continue?'
+              )
+              if (!proceed) return
             }
 
             setIsSaving(true)
@@ -81,12 +135,14 @@ export function Toolbar() {
               const savedPath = await window.api.saveFile(newPdfData, 'annotated-document.pdf')
               if (savedPath) {
                 // Toast logic could go here
-                if (confirm(`Saved successfully to ${savedPath}.\nDo you want to open the new file?`)) {
-                   const fileData = await window.api.readFile(savedPath)
-                   if (fileData) {
-                     setPdf(fileData.path, fileData.data)
-                     useAnnotationStore.getState().clearAnnotations()
-                   }
+                if (
+                  confirm(`Saved successfully to ${savedPath}.\nDo you want to open the new file?`)
+                ) {
+                  const fileData = await window.api.readFile(savedPath)
+                  if (fileData) {
+                    setPdf(fileData.path, fileData.data)
+                    useAnnotationStore.getState().clearAnnotations()
+                  }
                 }
               }
             } catch (err) {
@@ -134,15 +190,25 @@ export function Toolbar() {
 
         <div className="flex items-center gap-1">
           <button
-            onClick={() => setScale((s) => typeof s === 'number' ? Math.max(0.25, s - 0.25) : 0.75)}
+            onClick={() =>
+              setScale((s) => (typeof s === 'number' ? Math.max(0.25, s - 0.25) : 0.75))
+            }
             className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
             title="Zoom Out"
           >
             <ZoomOut size={18} />
           </button>
-          <span className="w-12 text-center text-sm">{typeof scale === 'number' ? `${Math.round(scale * 100)}%` : (scale === 'page-width' ? 'Width' : 'Fit')}</span>
+          <span className="w-12 text-center text-sm">
+            {typeof scale === 'number'
+              ? `${Math.round(scale * 100)}%`
+              : scale === 'page-width'
+                ? 'Width'
+                : 'Fit'}
+          </span>
           <button
-            onClick={() => setScale((s) => typeof s === 'number' ? Math.min(5.0, s + 0.25) : 1.25)}
+            onClick={() =>
+              setScale((s) => (typeof s === 'number' ? Math.min(5.0, s + 0.25) : 1.25))
+            }
             className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
             title="Zoom In"
           >
@@ -150,7 +216,7 @@ export function Toolbar() {
           </button>
           <button
             onClick={() => {
-              setScale((s) => s === 1.0 ? 'page-width' : 1.0)
+              setScale((s) => (s === 1.0 ? 'page-width' : 1.0))
             }}
             className="p-1.5 hover:bg-gray-200 dark:hover:bg-gray-700 rounded ml-1"
             title="Fit Width/Page"
@@ -170,9 +236,11 @@ export function Toolbar() {
             onChange={(e) => setSearchQuery(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
-                window.dispatchEvent(new CustomEvent('pdf-search', {
-                  detail: { query: searchQuery, type: 'next' }
-                }))
+                window.dispatchEvent(
+                  new CustomEvent('pdf-search', {
+                    detail: { query: searchQuery, type: 'next' }
+                  })
+                )
               }
             }}
             className="bg-transparent border-none outline-none text-sm w-40 px-1"
@@ -183,13 +251,21 @@ export function Toolbar() {
             </span>
           )}
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent('pdf-search', { detail: { query: searchQuery, type: 'prev' } }))}
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent('pdf-search', { detail: { query: searchQuery, type: 'prev' } })
+              )
+            }
             className="p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
           >
             <ChevronUp size={16} />
           </button>
           <button
-            onClick={() => window.dispatchEvent(new CustomEvent('pdf-search', { detail: { query: searchQuery, type: 'next' } }))}
+            onClick={() =>
+              window.dispatchEvent(
+                new CustomEvent('pdf-search', { detail: { query: searchQuery, type: 'next' } })
+              )
+            }
             className="p-1 hover:bg-gray-300 dark:hover:bg-gray-600 rounded text-gray-600 dark:text-gray-300"
           >
             <ChevronDown size={16} />
