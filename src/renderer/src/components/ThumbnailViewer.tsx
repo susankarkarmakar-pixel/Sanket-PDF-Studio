@@ -3,7 +3,15 @@ import * as pdfjsLib from 'pdfjs-dist'
 import { useAppStore } from '../store'
 
 export function ThumbnailViewer() {
-  const { pdfData, numPages, currentPage, selectedPagesForExtraction, togglePageSelection, pageOrder, setPageOrder } = useAppStore()
+  const {
+    pdfData,
+    numPages,
+    currentPage,
+    selectedPagesForExtraction,
+    togglePageSelection,
+    pageOrder,
+    setPageOrder
+  } = useAppStore()
   const [pdfDoc, setPdfDoc] = useState<pdfjsLib.PDFDocumentProxy | null>(null)
 
   const containerRef = useRef<HTMLDivElement>(null)
@@ -45,30 +53,38 @@ export function ThumbnailViewer() {
   useEffect(() => {
     if (!pdfData) return
     let isMounted = true
+    let activeLoadingTask: pdfjsLib.PDFDocumentLoadingTask | null = null
 
     const loadPdf = async () => {
-      let timeoutId: any;
+      let timeoutId: any
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
+        activeLoadingTask = loadingTask
 
         // Add a timeout to catch hanging worker
         const timeoutPromise = new Promise((_, reject) => {
           timeoutId = setTimeout(() => {
-            reject(new Error("PDF failed to load: worker did not respond (timeout after 15s)"));
-          }, 15000);
-        });
+            reject(new Error('PDF failed to load: worker did not respond (timeout after 15s)'))
+          }, 15000)
+        })
 
-        const doc = await Promise.race([loadingTask.promise, timeoutPromise]) as pdfjsLib.PDFDocumentProxy;
-        clearTimeout(timeoutId);
+        const doc = (await Promise.race([
+          loadingTask.promise,
+          timeoutPromise
+        ])) as pdfjsLib.PDFDocumentProxy
+        clearTimeout(timeoutId)
 
         if (isMounted) setPdfDoc(doc)
       } catch (err: any) {
-        clearTimeout(timeoutId);
+        clearTimeout(timeoutId)
         console.error('Thumbnail PDF loading error', err)
       }
     }
     loadPdf()
-    return () => { isMounted = false }
+    return () => {
+      isMounted = false
+      if (activeLoadingTask) void activeLoadingTask.destroy()
+    }
   }, [pdfData])
 
   useEffect(() => {
@@ -120,83 +136,89 @@ export function ThumbnailViewer() {
   )
 }
 
-const Thumbnail = memo(({
-  pageNum,
-  pdfDoc,
-  isActive,
-  isSelected,
-  onSelect
-}: {
-  pageNum: number
-  index: number
-  pdfDoc: pdfjsLib.PDFDocumentProxy
-  isActive: boolean
-  isSelected?: boolean
-  onSelect?: (multi: boolean) => void
-}) => {
-  const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null)
+const Thumbnail = memo(
+  ({
+    pageNum,
+    pdfDoc,
+    isActive,
+    isSelected,
+    onSelect
+  }: {
+    pageNum: number
+    index: number
+    pdfDoc: pdfjsLib.PDFDocumentProxy
+    isActive: boolean
+    isSelected?: boolean
+    onSelect?: (multi: boolean) => void
+  }) => {
+    const [canvasRef, setCanvasRef] = useState<HTMLCanvasElement | null>(null)
 
-  useEffect(() => {
-    if (!canvasRef || !pdfDoc) return
-    let isMounted = true
-    let renderTask: pdfjsLib.RenderTask | null = null
+    useEffect(() => {
+      if (!canvasRef || !pdfDoc) return
+      let isMounted = true
+      let renderTask: pdfjsLib.RenderTask | null = null
 
-    const renderPage = async () => {
-      try {
-        const page = await pdfDoc.getPage(pageNum)
-        if (!isMounted) return
-        const viewport = page.getViewport({ scale: 0.2 })
-        const canvas = canvasRef
-        const context = canvas.getContext('2d')
-        if (!context) return
-        canvas.height = viewport.height
-        canvas.width = viewport.width
+      const renderPage = async () => {
+        try {
+          const page = await pdfDoc.getPage(pageNum)
+          if (!isMounted) return
+          const viewport = page.getViewport({ scale: 0.2 })
+          const canvas = canvasRef
+          const context = canvas.getContext('2d')
+          if (!context) return
+          canvas.height = viewport.height
+          canvas.width = viewport.width
 
-        const renderContext = {
-          canvasContext: context,
-          canvas: canvas,
-          viewport: viewport
-        }
-        renderTask = page.render(renderContext)
-        await renderTask.promise
-      } catch (err) {
-        if ((err as any).name !== 'RenderingCancelledException') {
-          console.error(`Error rendering thumbnail page ${pageNum}`, err)
+          const renderContext = {
+            canvasContext: context,
+            canvas: canvas,
+            viewport: viewport
+          }
+          renderTask = page.render(renderContext)
+          await renderTask.promise
+        } catch (err) {
+          if ((err as any).name !== 'RenderingCancelledException') {
+            console.error(`Error rendering thumbnail page ${pageNum}`, err)
+          }
         }
       }
-    }
-    renderPage()
-    return () => {
-      isMounted = false
-      if (renderTask) renderTask.cancel()
-    }
-  }, [canvasRef, pdfDoc, pageNum])
+      renderPage()
+      return () => {
+        isMounted = false
+        if (renderTask) renderTask.cancel()
+      }
+    }, [canvasRef, pdfDoc, pageNum])
 
-  const handleClick = (e: React.MouseEvent) => {
-    if (e.ctrlKey || e.metaKey || e.shiftKey) {
-      if (onSelect) onSelect(true)
-    } else {
-      if (onSelect) onSelect(false)
-      window.dispatchEvent(new CustomEvent('page-change-request', { detail: pageNum }))
+    const handleClick = (e: React.MouseEvent) => {
+      if (e.ctrlKey || e.metaKey || e.shiftKey) {
+        if (onSelect) onSelect(true)
+      } else {
+        if (onSelect) onSelect(false)
+        window.dispatchEvent(new CustomEvent('page-change-request', { detail: pageNum }))
+      }
     }
-  }
 
-  return (
-    <div
-      className={`flex flex-col items-center justify-center gap-1 cursor-pointer p-2 mx-2 rounded-lg transition-colors h-[200px] ${
-        isSelected ? "bg-primary/20 ring-2 ring-primary" : isActive ? 'bg-gray-200 dark:bg-gray-700 ring-2 ring-primary' : 'hover:bg-gray-100 dark:hover:bg-gray-800'
-      }`}
-      onClick={handleClick}
-    >
-      <div className="flex-1 flex items-center justify-center min-h-0 w-full overflow-hidden">
-        <canvas
-          ref={setCanvasRef}
-          className="shadow-sm rounded border border-gray-300 dark:border-gray-600 bg-white max-h-full max-w-full object-contain"
-        />
+    return (
+      <div
+        className={`flex flex-col items-center justify-center gap-1 cursor-pointer p-2 mx-2 rounded-lg transition-colors h-[200px] ${
+          isSelected
+            ? 'bg-primary/20 ring-2 ring-primary'
+            : isActive
+              ? 'bg-gray-200 dark:bg-gray-700 ring-2 ring-primary'
+              : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+        }`}
+        onClick={handleClick}
+      >
+        <div className="flex-1 flex items-center justify-center min-h-0 w-full overflow-hidden">
+          <canvas
+            ref={setCanvasRef}
+            className="shadow-sm rounded border border-gray-300 dark:border-gray-600 bg-white max-h-full max-w-full object-contain"
+          />
+        </div>
+        <span className="text-xs text-gray-500 mt-1">{pageNum}</span>
       </div>
-      <span className="text-xs text-gray-500 mt-1">{pageNum}</span>
-    </div>
-  )
-})
+    )
+  }
+)
 
 Thumbnail.displayName = 'Thumbnail'

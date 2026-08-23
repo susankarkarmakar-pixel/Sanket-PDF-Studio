@@ -85,10 +85,12 @@ export function PDFViewer() {
     if (loadedDataRef.current === pdfData) return // already loaded/loading this exact data
     loadedDataRef.current = pdfData
 
+    let activeLoadingTask: pdfjsLib.PDFDocumentLoadingTask | null = null
     const loadDocument = async () => {
       let timeoutId: any
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
+        activeLoadingTask = loadingTask
         loadingTask.onPassword = (callback, reason) => {
           void askForPassword(reason).then((password) => {
             if (password === null) {
@@ -129,7 +131,8 @@ export function PDFViewer() {
     loadDocument()
 
     return () => {
-      // Cleanup document if needed
+      if (activeLoadingTask) void activeLoadingTask.destroy()
+      loadedDataRef.current = null
     }
   }, [askForPassword, pdfData, pdfViewer, eventBus, notify, setNumPages])
 
