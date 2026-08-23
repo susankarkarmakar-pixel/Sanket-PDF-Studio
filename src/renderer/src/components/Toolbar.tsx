@@ -10,10 +10,12 @@ import {
   ChevronUp,
   ChevronDown,
   Command,
+  GitCompareArrows,
   Printer,
   Save,
   Undo2,
   Redo2,
+  ScanText,
   WandSparkles
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -28,6 +30,8 @@ import { AnnotationPropertiesPanel } from '../features/annotate/AnnotationProper
 import { clearPdfDraft } from '../draftStorage'
 import { MetadataModal } from '../features/metadata/MetadataModal'
 import { DocumentToolsModal } from '../features/import-export/DocumentToolsModal'
+import { OcrModal } from '../features/ocr/OcrModal'
+import { CompareModal } from '../features/comparison/CompareModal'
 
 export function Toolbar(): React.JSX.Element {
   const {
@@ -66,6 +70,8 @@ export function Toolbar(): React.JSX.Element {
   const [showSettings, setShowSettings] = useState(false)
   const [showMetadata, setShowMetadata] = useState(false)
   const [showDocumentTools, setShowDocumentTools] = useState(false)
+  const [showOcr, setShowOcr] = useState(false)
+  const [showCompare, setShowCompare] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -328,6 +334,24 @@ export function Toolbar(): React.JSX.Element {
         </div>
 
         <button
+          onClick={() => setShowCompare(true)}
+          disabled={!pdfData}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
+          title="Compare with another PDF"
+          aria-label="Compare with another PDF"
+        >
+          <GitCompareArrows size={20} />
+        </button>
+        <button
+          onClick={() => setShowOcr(true)}
+          disabled={!pdfData}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
+          title="Create searchable PDF with OCR"
+          aria-label="Create searchable PDF with OCR"
+        >
+          <ScanText size={20} />
+        </button>
+        <button
           onClick={() => setShowDocumentTools(true)}
           disabled={!pdfData}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
@@ -355,6 +379,8 @@ export function Toolbar(): React.JSX.Element {
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
         {showMetadata && <MetadataModal onClose={() => setShowMetadata(false)} />}
         {showDocumentTools && <DocumentToolsModal onClose={() => setShowDocumentTools(false)} />}
+        {showOcr && <OcrModal onClose={() => setShowOcr(false)} />}
+        {showCompare && <CompareModal onClose={() => setShowCompare(false)} />}
       </div>
     </header>
   )
