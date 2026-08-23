@@ -157,9 +157,34 @@ function App(): React.JSX.Element {
 
           {!pdfData && (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-gray-100/80 dark:bg-gray-900/80 backdrop-blur-md p-8 z-40">
-              <h1 className="text-4xl font-bold text-gray-400 mb-8">Sanket PDF Studio</h1>
+              <h1 className="text-4xl font-bold text-gray-400 mb-4">Sanket PDF Studio</h1>
+              <p className="mb-8 text-sm text-gray-500 dark:text-gray-400">
+                A private, offline-first workspace for viewing, editing, annotating, and organizing
+                PDF files.
+              </p>
 
               <div className="glass p-8 rounded-2xl shadow-xl w-full max-w-2xl border border-white/20">
+                <div className="mb-6 grid gap-3 rounded-lg bg-primary/10 p-4 text-sm md:grid-cols-3">
+                  <div>
+                    <strong className="block">1. Open</strong>
+                    <span className="text-gray-600 dark:text-gray-300">
+                      Choose a PDF or drop one into the window.
+                    </span>
+                  </div>
+                  <div>
+                    <strong className="block">2. Edit</strong>
+                    <span className="text-gray-600 dark:text-gray-300">
+                      Annotate, manage pages, search, and use document tools.
+                    </span>
+                  </div>
+                  <div>
+                    <strong className="block">3. Save</strong>
+                    <span className="text-gray-600 dark:text-gray-300">
+                      Export a clean copy without uploading your document.
+                    </span>
+                  </div>
+                </div>
+
                 <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
                   Recent Files
                 </h2>

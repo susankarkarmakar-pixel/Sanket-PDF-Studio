@@ -1,10 +1,11 @@
 {
   "name": "sanket-pdf-studio",
   "version": "1.0.0",
-  "description": "An Electron application with React and TypeScript",
+  "description": "Offline-first PDF viewer and editor for annotating, organizing, and exporting documents.",
   "main": "./out/main/index.js",
-  "author": "example.com",
-  "homepage": "https://electron-vite.org",
+  "author": "Sanket PDF Studio",
+  "homepage": "https://github.com/susankarkarmakar-pixel/Sanket-PDF-Studio",
+  "repository": "https://github.com/susankarkarmakar-pixel/Sanket-PDF-Studio",
   "scripts": {
     "format": "prettier --write .",
     "lint": "eslint --cache .",
