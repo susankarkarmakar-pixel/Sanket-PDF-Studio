@@ -37,6 +37,7 @@ export function PDFViewer() {
     scale,
     setCurrentPage,
     setNumPages,
+    setPageLabels,
     setSearchHighlightCurrent,
     setSearchHighlightTotal
   } = useAppStore()
@@ -116,6 +117,7 @@ export function PDFViewer() {
 
         setPdfDocument(doc)
         setNumPages(doc.numPages)
+        setPageLabels(await doc.getPageLabels())
 
         pdfViewer.setDocument(doc)
       } catch (err: any) {
@@ -134,7 +136,7 @@ export function PDFViewer() {
       if (activeLoadingTask) void activeLoadingTask.destroy()
       loadedDataRef.current = null
     }
-  }, [askForPassword, pdfData, pdfViewer, eventBus, notify, setNumPages])
+  }, [askForPassword, pdfData, pdfViewer, eventBus, notify, setNumPages, setPageLabels])
 
   useEffect(() => {
     if (pdfViewer) {

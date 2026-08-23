@@ -21,6 +21,7 @@ function App(): React.JSX.Element {
     recentFiles,
     addRecentFile,
     removeRecentFile,
+    clearRecentFiles,
     pageOrder,
     setPageOrder
   } = useAppStore()
@@ -185,9 +186,18 @@ function App(): React.JSX.Element {
                   </div>
                 </div>
 
-                <h2 className="text-xl font-semibold mb-4 border-b border-gray-200 dark:border-gray-600 pb-2">
-                  Recent Files
-                </h2>
+                <div className="mb-4 flex items-center justify-between border-b border-gray-200 pb-2 dark:border-gray-600">
+                  <h2 className="text-xl font-semibold">Recent Files</h2>
+                  {recentFiles.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={clearRecentFiles}
+                      className="text-xs text-gray-500 hover:text-primary"
+                    >
+                      Clear history
+                    </button>
+                  )}
+                </div>
 
                 {recentFiles.length === 0 ? (
                   <p className="text-gray-500 italic py-4">No recent files. Open a PDF to begin.</p>

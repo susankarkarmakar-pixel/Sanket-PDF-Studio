@@ -12,6 +12,7 @@ interface AppState {
   scale: ScaleType
   currentPage: number
   numPages: number
+  pageLabels: string[] | null
   searchQuery: string
   searchHighlightCurrent: number
   searchHighlightTotal: number
@@ -19,6 +20,7 @@ interface AppState {
   setDefaultZoom: (zoom: ScaleType) => void
   addRecentFile: (path: string, name: string) => void
   removeRecentFile: (path: string) => void
+  clearRecentFiles: () => void
   loadSettings: () => Promise<void>
 
   selectedPagesForExtraction: number[]
@@ -31,6 +33,7 @@ interface AppState {
   setScale: (scale: ScaleType | ((prev: ScaleType) => ScaleType)) => void
   setCurrentPage: (page: number) => void
   setNumPages: (num: number) => void
+  setPageLabels: (labels: string[] | null) => void
   setSearchQuery: (query: string) => void
   setSearchHighlightCurrent: (current: number) => void
   setSearchHighlightTotal: (total: number) => void
@@ -45,6 +48,7 @@ export const useAppStore = create<AppState>((set) => ({
   scale: 1.0,
   currentPage: 1,
   numPages: 0,
+  pageLabels: null,
   searchQuery: '',
   searchHighlightCurrent: 0,
   searchHighlightTotal: 0,
@@ -70,6 +74,10 @@ export const useAppStore = create<AppState>((set) => ({
       window.api.setSetting('recentFiles', updated)
       return { recentFiles: updated }
     }),
+  clearRecentFiles: () => {
+    window.api.setSetting('recentFiles', [])
+    set({ recentFiles: [] })
+  },
   loadSettings: async () => {
     const settings = await window.api.getSettings()
     set((state) => ({
@@ -106,6 +114,7 @@ export const useAppStore = create<AppState>((set) => ({
       pdfData: data,
       currentPage: 1,
       numPages: 0,
+      pageLabels: null,
       scale: state.defaultZoom,
       searchQuery: '',
       searchHighlightCurrent: 0,
@@ -119,6 +128,7 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({ scale: typeof scale === 'function' ? scale(state.scale) : scale })),
   setCurrentPage: (currentPage) => set({ currentPage }),
   setNumPages: (numPages) => set({ numPages }),
+  setPageLabels: (pageLabels) => set({ pageLabels }),
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   setSearchHighlightCurrent: (searchHighlightCurrent) => set({ searchHighlightCurrent }),
   setSearchHighlightTotal: (searchHighlightTotal) => set({ searchHighlightTotal })

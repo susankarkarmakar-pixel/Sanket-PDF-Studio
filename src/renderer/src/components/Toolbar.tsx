@@ -40,6 +40,7 @@ export function Toolbar(): React.JSX.Element {
     setScale,
     currentPage,
     numPages,
+    pageLabels,
     setCurrentPage,
     searchQuery,
     setSearchQuery,
@@ -234,6 +235,9 @@ export function Toolbar(): React.JSX.Element {
               className="w-12 px-1 text-center bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded"
             />
             <span>of {numPages}</span>
+            {pageLabels?.[currentPage - 1] && (
+              <span className="text-xs text-gray-500">({pageLabels[currentPage - 1]})</span>
+            )}
           </div>
         )}
 
