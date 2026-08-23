@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { mergePdfs } from './pdfPageOps'
 import { X, ArrowUp, ArrowDown } from 'lucide-react'
+import { useFeedbackStore } from '../../feedbackStore'
 
 interface MergeModalProps {
   onClose: () => void
@@ -11,6 +12,7 @@ interface MergeModalProps {
 export function MergeModal({ onClose, onSuccess }: MergeModalProps): React.JSX.Element {
   const [files, setFiles] = useState<{ path: string; data: Uint8Array; name: string }[]>([])
   const [isProcessing, setIsProcessing] = useState(false)
+  const { notify } = useFeedbackStore()
 
   const handleAddFiles = async (): Promise<void> => {
     const selectedFiles = await window.api.openFiles()
@@ -53,7 +55,7 @@ export function MergeModal({ onClose, onSuccess }: MergeModalProps): React.JSX.E
 
   const handleMerge = async (): Promise<void> => {
     if (files.length < 2) {
-      alert('Please add at least 2 files to merge.')
+      notify('Please add at least 2 files to merge.', 'error')
       return
     }
 
@@ -63,7 +65,7 @@ export function MergeModal({ onClose, onSuccess }: MergeModalProps): React.JSX.E
       onSuccess(mergedData)
     } catch (err) {
       console.error(err)
-      alert('Failed to merge files.')
+      notify('Failed to merge files.', 'error')
     } finally {
       setIsProcessing(false)
     }

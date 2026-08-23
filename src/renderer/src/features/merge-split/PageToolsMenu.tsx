@@ -13,6 +13,7 @@ import {
 import { MergeModal } from './MergeModal'
 import { SplitModal } from './SplitModal'
 import { useAppStore } from '../../store'
+import { useFeedbackStore } from '../../feedbackStore'
 import {
   deletePages,
   duplicatePages,
@@ -40,6 +41,7 @@ export function PageToolsMenu(): React.JSX.Element {
     pageOrder,
     setPageOrder
   } = useAppStore()
+  const { notify } = useFeedbackStore()
 
   const selectedPages =
     selectedPagesForExtraction.length > 0 ? selectedPagesForExtraction : [currentPage]
@@ -60,7 +62,7 @@ export function PageToolsMenu(): React.JSX.Element {
       await saveAndOpen(await operation(pdfData), defaultPath)
     } catch (error) {
       console.error(error)
-      alert(error instanceof Error ? error.message : 'The PDF operation failed.')
+      notify(error instanceof Error ? error.message : 'The PDF operation failed.', 'error')
     } finally {
       setIsProcessing(false)
     }
@@ -68,7 +70,7 @@ export function PageToolsMenu(): React.JSX.Element {
 
   const handleDelete = async (): Promise<void> => {
     if (selectedPages.length >= numPages) {
-      alert('A PDF must contain at least one page.')
+      notify('A PDF must contain at least one page.', 'error')
       return
     }
     await runPageOperation((data) => deletePages(data, selectedPages), 'pages-deleted.pdf')
@@ -94,19 +96,9 @@ export function PageToolsMenu(): React.JSX.Element {
 
   const handleInsertBlank = async (): Promise<void> => {
     if (!pdfData || isProcessing) return
-    const value = window.prompt(
-      'How many blank A4 pages should be inserted before the current page?',
-      '1'
-    )
-    if (value === null) return
-    const count = Number(value)
-    if (!Number.isInteger(count) || count < 1 || count > 100) {
-      alert('Enter a whole number between 1 and 100.')
-      return
-    }
     await runPageOperation(
-      (data) => insertBlankPages(data, count, Math.max(0, currentPage - 1)),
-      'blank-pages-inserted.pdf'
+      (data) => insertBlankPages(data, 1, Math.max(0, currentPage - 1)),
+      'blank-page-inserted.pdf'
     )
   }
 
@@ -124,7 +116,10 @@ export function PageToolsMenu(): React.JSX.Element {
       successCount += 1
     }
     if (successCount > 0)
-      alert(`Successfully split into ${successCount} file${successCount === 1 ? '' : 's'}.`)
+      notify(
+        `Successfully split into ${successCount} file${successCount === 1 ? '' : 's'}.`,
+        'success'
+      )
   }
 
   const handleExtract = async (): Promise<void> => {
@@ -178,7 +173,7 @@ export function PageToolsMenu(): React.JSX.Element {
           onClick={handleInsertBlank}
           disabled={!pdfData || isProcessing}
           className={buttonClass}
-          title="Insert blank A4 page"
+          title="Insert one blank A4 page before current page"
           aria-label="Insert blank page"
         >
           <SquarePlus size={16} />

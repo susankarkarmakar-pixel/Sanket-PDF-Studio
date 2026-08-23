@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { X, Upload, Eraser } from 'lucide-react'
 import { useSignatureStore } from './signatureStore'
+import { useFeedbackStore } from '../../feedbackStore'
 
 interface SignatureModalProps {
   onClose: () => void
@@ -11,6 +12,7 @@ export function SignatureModal({ onClose }: SignatureModalProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const [isDrawing, setIsDrawing] = useState(false)
   const { addSignature } = useSignatureStore()
+  const { notify } = useFeedbackStore()
 
   // Setup drawing canvas
   useEffect(() => {
@@ -93,7 +95,7 @@ export function SignatureModal({ onClose }: SignatureModalProps) {
       const hasContent = pixels?.some((channel, i) => i % 4 === 3 && channel > 0)
 
       if (!hasContent) {
-        alert("Please draw a signature first.")
+        notify('Please draw a signature first.', 'error')
         return
       }
 
@@ -123,11 +125,17 @@ export function SignatureModal({ onClose }: SignatureModalProps) {
       <div className="bg-[var(--color-panel-light)] dark:bg-[var(--color-panel-dark)] rounded-lg shadow-xl p-6 w-[500px] max-w-full">
         <div className="flex justify-between items-center mb-4">
           <h2 className="text-xl font-bold">Add Signature Image</h2>
-          <button onClick={onClose} className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"><X size={20}/></button>
+          <button
+            onClick={onClose}
+            className="p-1 hover:bg-gray-200 dark:hover:bg-gray-700 rounded"
+          >
+            <X size={20} />
+          </button>
         </div>
 
         <p className="text-sm text-gray-500 mb-4">
-          This creates a visual signature stamp to place on the document. It is not a legally-binding cryptographic digital signature.
+          This creates a visual signature stamp to place on the document. It is not a
+          legally-binding cryptographic digital signature.
         </p>
 
         <div className="flex border-b border-gray-300 dark:border-gray-700 mb-4">
@@ -167,8 +175,18 @@ export function SignatureModal({ onClose }: SignatureModalProps) {
               </button>
             </div>
             <div className="flex justify-end gap-2">
-              <button onClick={onClose} className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded">Cancel</button>
-              <button onClick={handleSaveDraw} className="px-4 py-2 bg-primary text-white hover:bg-primary-dark rounded">Save Signature</button>
+              <button
+                onClick={onClose}
+                className="px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleSaveDraw}
+                className="px-4 py-2 bg-primary text-white hover:bg-primary-dark rounded"
+              >
+                Save Signature
+              </button>
             </div>
           </div>
         )}

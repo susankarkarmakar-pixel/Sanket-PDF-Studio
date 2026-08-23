@@ -1,12 +1,21 @@
 import { useEffect, useState, useRef } from 'react'
 import * as pdfjsLib from 'pdfjs-dist'
-import { EventBus, PDFFindController, PDFLinkService, PDFViewer as PDFJSViewer } from 'pdfjs-dist/web/pdf_viewer.mjs'
+import {
+  EventBus,
+  PDFFindController,
+  PDFLinkService,
+  PDFViewer as PDFJSViewer
+} from 'pdfjs-dist/web/pdf_viewer.mjs'
 import 'pdfjs-dist/web/pdf_viewer.css'
 import { useAppStore } from '../store'
 import { createPortal } from 'react-dom'
 import { AnnotationLayer } from '../features/annotate/AnnotationLayer'
+import { useFeedbackStore } from '../feedbackStore'
 
-pdfjsLib.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.mjs', import.meta.url).toString()
+pdfjsLib.GlobalWorkerOptions.workerSrc = new URL(
+  'pdfjs-dist/build/pdf.worker.mjs',
+  import.meta.url
+).toString()
 
 export function PDFViewer() {
   const [containerNode, setContainerNode] = useState<HTMLDivElement | null>(null)
@@ -17,9 +26,10 @@ export function PDFViewer() {
   const [pdfFindController, setPdfFindController] = useState<PDFFindController | null>(null)
   const [eventBus, setEventBus] = useState<EventBus | null>(null)
 
-  const [pageViews, setPageViews] = useState<{ id: number, element: HTMLElement, scale: number, width: number, height: number }[]>([])
+  const [pageViews, setPageViews] = useState<
+    { id: number; element: HTMLElement; scale: number; width: number; height: number }[]
+  >([])
   const loadedDataRef = useRef<Uint8Array | null>(null)
-
 
   const {
     pdfData,
@@ -29,6 +39,7 @@ export function PDFViewer() {
     setSearchHighlightCurrent,
     setSearchHighlightTotal
   } = useAppStore()
+  const { notify } = useFeedbackStore()
 
   useEffect(() => {
     if (!containerNode || !viewerNode) return
@@ -38,7 +49,7 @@ export function PDFViewer() {
 
     const findController = new PDFFindController({
       eventBus: bus,
-      linkService,
+      linkService
     })
 
     let viewer: PDFJSViewer
@@ -49,7 +60,7 @@ export function PDFViewer() {
         eventBus: bus,
         linkService,
         findController,
-        removePageBorders: true,
+        removePageBorders: true
       })
     } catch (err) {
       console.error('Failed to initialize PDF viewer:', err)
@@ -73,28 +84,34 @@ export function PDFViewer() {
     loadedDataRef.current = pdfData
 
     const loadDocument = async () => {
-      let timeoutId: any;
+      let timeoutId: any
       try {
         const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
 
         // Add a timeout to catch hanging worker
         const timeoutPromise = new Promise((_, reject) => {
           timeoutId = setTimeout(() => {
-            reject(new Error("PDF failed to load: worker did not respond (timeout after 15s)"));
-          }, 15000);
-        });
+            reject(new Error('PDF failed to load: worker did not respond (timeout after 15s)'))
+          }, 15000)
+        })
 
-        const doc = await Promise.race([loadingTask.promise, timeoutPromise]) as pdfjsLib.PDFDocumentProxy;
-        clearTimeout(timeoutId);
+        const doc = (await Promise.race([
+          loadingTask.promise,
+          timeoutPromise
+        ])) as pdfjsLib.PDFDocumentProxy
+        clearTimeout(timeoutId)
 
         setPdfDocument(doc)
         setNumPages(doc.numPages)
 
         pdfViewer.setDocument(doc)
       } catch (err: any) {
-        clearTimeout(timeoutId);
+        clearTimeout(timeoutId)
         console.error('Error loading PDF:', err)
-        alert(`Couldn't open this PDF: ${err.message || err}`)
+        notify(
+          `Couldn't open this PDF: ${err instanceof Error ? err.message : 'Unknown PDF error'}`,
+          'error'
+        )
       }
     }
 
@@ -123,30 +140,29 @@ export function PDFViewer() {
       setSearchHighlightTotal(e.matchesCount.total)
     }
 
-
     const handlePageRendered = (e: any) => {
-      const pageNumber = e.pageNumber;
-      const pageView = ((pdfViewer as any)?._pages)[pageNumber - 1]; // Access internal pages array
+      const pageNumber = e.pageNumber
+      const pageView = ((pdfViewer as any)?._pages)[pageNumber - 1] // Access internal pages array
 
       if (pageView && pageView.div) {
-        setPageViews(prev => {
+        setPageViews((prev) => {
           // Check if already exists to avoid duplicates on re-render
-          const existing = prev.findIndex(p => p.id === pageNumber);
+          const existing = prev.findIndex((p) => p.id === pageNumber)
           const newEntry = {
             id: pageNumber,
             element: pageView.div,
             scale: pageView.scale,
             width: pageView.width,
             height: pageView.height
-          };
+          }
 
           if (existing >= 0) {
-            const next = [...prev];
-            next[existing] = newEntry;
-            return next;
+            const next = [...prev]
+            next[existing] = newEntry
+            return next
           }
-          return [...prev, newEntry];
-        });
+          return [...prev, newEntry]
+        })
       }
     }
 
@@ -168,7 +184,7 @@ export function PDFViewer() {
 
       const { query, type } = e.detail
       eventBus.dispatch('find', {
-        type: type === 'next' ? 'findagain' : (type === 'prev' ? 'findagain' : 'find'),
+        type: type === 'next' ? 'findagain' : type === 'prev' ? 'findagain' : 'find',
         query: query,
         phraseSearch: true,
         caseSensitive: false,
@@ -196,10 +212,13 @@ export function PDFViewer() {
   if (!pdfData) return null
 
   return (
-    <div className="absolute inset-0 overflow-auto bg-gray-200 dark:bg-gray-800" ref={setContainerNode}>
+    <div
+      className="absolute inset-0 overflow-auto bg-gray-200 dark:bg-gray-800"
+      ref={setContainerNode}
+    >
       <div id="viewer" className="pdfViewer" ref={setViewerNode}></div>
 
-      {pageViews.map(page =>
+      {pageViews.map((page) =>
         createPortal(
           <AnnotationLayer
             pageNum={page.id}

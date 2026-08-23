@@ -20,6 +20,7 @@ import { SettingsModal } from './SettingsModal'
 import { PageToolsMenu } from '../features/merge-split/PageToolsMenu'
 import { useAnnotationStore } from '../features/annotate/annotationStore'
 import { flattenAnnotations } from '../features/annotate/saveAnnotations'
+import { useFeedbackStore } from '../feedbackStore'
 
 export function Toolbar(): React.JSX.Element {
   const {
@@ -27,6 +28,7 @@ export function Toolbar(): React.JSX.Element {
     setPdf,
     pdfData,
     pdfPath,
+    pageOrder,
     scale,
     setScale,
     currentPage,
@@ -51,6 +53,7 @@ export function Toolbar(): React.JSX.Element {
   }, [theme])
 
   const { annotations, history, future, undo, redo } = useAnnotationStore()
+  const { confirm, notify } = useFeedbackStore()
   const [isSaving, setIsSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
 
@@ -76,6 +79,11 @@ export function Toolbar(): React.JSX.Element {
   }, [redo, undo])
 
   const handleOpenFile = async (): Promise<void> => {
+    if (
+      (annotations.length > 0 || pageOrder !== null) &&
+      !(await confirm('You have unsaved changes. Open another PDF and discard them?'))
+    )
+      return
     const file = await window.api.openFile()
     if (file) {
       setPdf(file.path, file.data)
@@ -124,8 +132,9 @@ export function Toolbar(): React.JSX.Element {
 
             const hasRedactions = annotations.some((a) => a.type === 'redact')
             if (hasRedactions) {
-              const proceed = confirm(
-                'This will permanently remove content in the marked areas from the redacted page(s). This cannot be undone once saved. Continue?'
+              const proceed = await confirm(
+                'This will permanently remove content in the marked areas from the redacted page(s). This cannot be undone once saved. Continue?',
+                'Confirm permanent redaction'
               )
               if (!proceed) return
             }
@@ -147,7 +156,7 @@ export function Toolbar(): React.JSX.Element {
               }
             } catch (err) {
               console.error(err)
-              alert('Failed to save file.')
+              notify('Failed to save the PDF. Please try again.', 'error')
             } finally {
               setIsSaving(false)
             }

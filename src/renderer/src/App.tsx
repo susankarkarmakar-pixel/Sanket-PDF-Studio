@@ -5,11 +5,14 @@ import { PDFViewer } from './components/PDFViewer'
 import { ThumbnailViewer } from './components/ThumbnailViewer'
 import { useAppStore } from './store'
 import { useAnnotationStore } from './features/annotate/annotationStore'
+import { FeedbackHost } from './components/FeedbackHost'
+import { useFeedbackStore } from './feedbackStore'
 
 function App(): React.JSX.Element {
   const { loadSettings, setPdf, pdfData, recentFiles, addRecentFile, removeRecentFile, pageOrder } =
     useAppStore()
   const { annotations } = useAnnotationStore()
+  const { notify, confirm } = useFeedbackStore()
   const hasUnsavedChanges = annotations.length > 0 || pageOrder !== null
   const [isDragging, setIsDragging] = useState(false)
 
@@ -32,7 +35,7 @@ function App(): React.JSX.Element {
     const removeOpenFileListener = window.api.onOpenFileFromOS(async (filePath) => {
       if (
         hasUnsavedChanges &&
-        !window.confirm('You have unsaved changes. Open another PDF and discard them?')
+        !(await confirm('You have unsaved changes. Open another PDF and discard them?'))
       )
         return
       const fileData = await window.api.readFile(filePath)
@@ -40,12 +43,12 @@ function App(): React.JSX.Element {
         setPdf(fileData.path, fileData.data)
         addRecentFile(fileData.path, filePath.split(/[\\/]/).pop() || 'Unknown')
       } else {
-        alert('Unable to open that PDF file.')
+        notify('Unable to open that PDF file.', 'error')
       }
     })
 
     return removeOpenFileListener
-  }, [addRecentFile, hasUnsavedChanges, loadSettings, setPdf])
+  }, [addRecentFile, confirm, hasUnsavedChanges, loadSettings, notify, setPdf])
 
   const onDragOver = (e: React.DragEvent): void => {
     e.preventDefault()
@@ -62,14 +65,14 @@ function App(): React.JSX.Element {
     setIsDragging(false)
     if (
       hasUnsavedChanges &&
-      !window.confirm('You have unsaved changes. Open another PDF and discard them?')
+      !(await confirm('You have unsaved changes. Open another PDF and discard them?'))
     )
       return
 
     const file = e.dataTransfer.files[0]
     const filePath = file ? (file as File & { path?: string }).path : undefined
     if (!file || !filePath || !file.name.toLowerCase().endsWith('.pdf')) {
-      alert('Please drop a PDF file.')
+      notify('Please drop a PDF file.', 'error')
       return
     }
 
@@ -78,7 +81,7 @@ function App(): React.JSX.Element {
       setPdf(fileData.path, fileData.data)
       addRecentFile(fileData.path, file.name)
     } else {
-      alert('Unable to open that PDF file.')
+      notify('Unable to open that PDF file.', 'error')
     }
   }
 
@@ -89,6 +92,7 @@ function App(): React.JSX.Element {
       onDragLeave={onDragLeave}
       onDrop={onDrop}
     >
+      <FeedbackHost />
       <Toolbar />
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar>
@@ -116,9 +120,9 @@ function App(): React.JSX.Element {
                         onClick={async () => {
                           if (
                             hasUnsavedChanges &&
-                            !window.confirm(
+                            !(await confirm(
                               'You have unsaved changes. Open this recent PDF and discard them?'
-                            )
+                            ))
                           )
                             return
                           const fileData = await window.api.readFile(file.path)
@@ -127,7 +131,7 @@ function App(): React.JSX.Element {
                             setPdf(fileData.path, fileData.data)
                             addRecentFile(fileData.path, file.name)
                           } else {
-                            alert('File not found.')
+                            notify('File not found. The recent-file entry was removed.', 'error')
                             removeRecentFile(file.path)
                           }
                         }}
@@ -152,9 +156,9 @@ function App(): React.JSX.Element {
                     onClick={async () => {
                       if (
                         hasUnsavedChanges &&
-                        !window.confirm(
+                        !(await confirm(
                           'You have unsaved changes. Open another PDF and discard them?'
-                        )
+                        ))
                       )
                         return
                       const file = await window.api.openFile()
