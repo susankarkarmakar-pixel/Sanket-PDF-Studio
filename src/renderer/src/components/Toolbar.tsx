@@ -66,15 +66,38 @@ export function Toolbar(): React.JSX.Element {
       const target = event.target as HTMLElement | null
       const isEditing =
         target?.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(target?.tagName ?? '')
-      if (isEditing || !(event.ctrlKey || event.metaKey)) return
+      if (isEditing) return
 
-      if (event.key.toLowerCase() === 'z') {
+      if (event.key.toLowerCase() === 'z' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault()
         if (event.shiftKey) redo()
         else undo()
-      } else if (event.key.toLowerCase() === 'y') {
+      } else if (event.key.toLowerCase() === 'y' && (event.ctrlKey || event.metaKey)) {
         event.preventDefault()
         redo()
+      } else if (
+        numPages > 0 &&
+        ['ArrowRight', 'PageDown', 'ArrowLeft', 'PageUp', 'Home', 'End', '+', '='].includes(
+          event.key
+        )
+      ) {
+        event.preventDefault()
+        const nextPage =
+          event.key === 'Home'
+            ? 1
+            : event.key === 'End'
+              ? numPages
+              : event.key === 'ArrowLeft' || event.key === 'PageUp'
+                ? Math.max(1, currentPage - 1)
+                : event.key === '+' || event.key === '='
+                  ? currentPage
+                  : Math.min(numPages, currentPage + 1)
+        if (event.key === '+' || event.key === '=') {
+          setScale((value) => (typeof value === 'number' ? Math.min(5, value + 0.25) : 1.25))
+          return
+        }
+        setCurrentPage(nextPage)
+        window.dispatchEvent(new CustomEvent('page-change-request', { detail: nextPage }))
       }
     }
 

@@ -3,6 +3,7 @@ import { Toolbar } from './components/Toolbar'
 import { Sidebar } from './components/Sidebar'
 import { PDFViewer } from './components/PDFViewer'
 import { ThumbnailViewer } from './components/ThumbnailViewer'
+import { OutlineViewer } from './components/OutlineViewer'
 import { useAppStore } from './store'
 import { useAnnotationStore } from './features/annotate/annotationStore'
 import { FeedbackHost } from './components/FeedbackHost'
@@ -96,6 +97,7 @@ function App(): React.JSX.Element {
       <Toolbar />
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar>
+          <OutlineViewer />
           <ThumbnailViewer />
         </Sidebar>
         <main className="flex-1 overflow-hidden relative bg-gray-200 dark:bg-gray-800">
