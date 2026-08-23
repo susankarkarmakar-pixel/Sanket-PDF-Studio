@@ -21,6 +21,7 @@ import { PageToolsMenu } from '../features/merge-split/PageToolsMenu'
 import { useAnnotationStore } from '../features/annotate/annotationStore'
 import { flattenAnnotations } from '../features/annotate/saveAnnotations'
 import { useFeedbackStore } from '../feedbackStore'
+import { AnnotationPropertiesPanel } from '../features/annotate/AnnotationPropertiesPanel'
 
 export function Toolbar(): React.JSX.Element {
   const {
@@ -170,6 +171,7 @@ export function Toolbar(): React.JSX.Element {
         <AnnotationToolbar />
         <PageToolsMenu />
         <SignatureMenu />
+        <AnnotationPropertiesPanel />
       </div>
 
       <div className="flex items-center gap-4">

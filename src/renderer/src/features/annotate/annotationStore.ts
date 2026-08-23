@@ -36,6 +36,9 @@ export interface TextAnnotation extends BaseAnnotation {
   x: number
   y: number
   text: string
+  fontSize?: number
+  fontWeight?: 'normal' | 'bold'
+  fontStyle?: 'normal' | 'italic'
 }
 
 export interface StickyAnnotation extends BaseAnnotation {

@@ -30,6 +30,8 @@ export const flattenAnnotations = async (
 ): Promise<Uint8Array> => {
   const pdfDoc = await PDFDocument.load(pdfBytes)
   const helveticaFont = await pdfDoc.embedFont(StandardFonts.Helvetica)
+  const helveticaBoldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold)
+  const helveticaObliqueFont = await pdfDoc.embedFont(StandardFonts.HelveticaOblique)
   const pages = pdfDoc.getPages()
 
   // --- REDACTION LOGIC ---
@@ -187,11 +189,17 @@ export const flattenAnnotations = async (
       }
     } else if (ann.type === 'text') {
       const tAnn = ann as TextAnnotation
+      const textFont =
+        tAnn.fontWeight === 'bold'
+          ? helveticaBoldFont
+          : tAnn.fontStyle === 'italic'
+            ? helveticaObliqueFont
+            : helveticaFont
       page.drawText(tAnn.text, {
-        font: helveticaFont,
+        font: textFont,
         x: tAnn.x,
         y: height - tAnn.y,
-        size: 16,
+        size: tAnn.fontSize ?? 16,
         color: color
       })
     } else if (ann.type === 'sticky') {

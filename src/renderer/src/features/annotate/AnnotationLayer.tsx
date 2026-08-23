@@ -591,7 +591,9 @@ export function AnnotationLayer({
                 top: tAnn.y * scale,
                 transform: 'translate(0, -100%)',
                 color: tAnn.color,
-                fontSize: `${16 * scale}px`,
+                fontSize: `${(tAnn.fontSize ?? 16) * scale}px`,
+                fontWeight: tAnn.fontWeight ?? 'normal',
+                fontStyle: tAnn.fontStyle ?? 'normal',
                 pointerEvents: currentTool === 'pointer' ? 'auto' : 'none'
               }}
               onClick={(e) => {
