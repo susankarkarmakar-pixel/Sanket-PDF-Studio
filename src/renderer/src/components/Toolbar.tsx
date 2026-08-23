@@ -16,6 +16,7 @@ import {
   Undo2,
   Redo2,
   ScanText,
+  ShieldCheck,
   WandSparkles
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
@@ -32,6 +33,7 @@ import { MetadataModal } from '../features/metadata/MetadataModal'
 import { DocumentToolsModal } from '../features/import-export/DocumentToolsModal'
 import { OcrModal } from '../features/ocr/OcrModal'
 import { CompareModal } from '../features/comparison/CompareModal'
+import { SecurityModal } from '../features/security/SecurityModal'
 
 export function Toolbar(): React.JSX.Element {
   const {
@@ -72,6 +74,7 @@ export function Toolbar(): React.JSX.Element {
   const [showDocumentTools, setShowDocumentTools] = useState(false)
   const [showOcr, setShowOcr] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
+  const [showSecurity, setShowSecurity] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -334,6 +337,15 @@ export function Toolbar(): React.JSX.Element {
         </div>
 
         <button
+          onClick={() => setShowSecurity(true)}
+          disabled={!pdfData}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
+          title="Sign or encrypt PDF"
+          aria-label="Sign or encrypt PDF"
+        >
+          <ShieldCheck size={20} />
+        </button>
+        <button
           onClick={() => setShowCompare(true)}
           disabled={!pdfData}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
@@ -381,6 +393,7 @@ export function Toolbar(): React.JSX.Element {
         {showDocumentTools && <DocumentToolsModal onClose={() => setShowDocumentTools(false)} />}
         {showOcr && <OcrModal onClose={() => setShowOcr(false)} />}
         {showCompare && <CompareModal onClose={() => setShowCompare(false)} />}
+        {showSecurity && <SecurityModal onClose={() => setShowSecurity(false)} />}
       </div>
     </header>
   )

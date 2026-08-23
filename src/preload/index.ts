@@ -1,6 +1,12 @@
 import { contextBridge, ipcRenderer } from 'electron'
 import { electronAPI } from '@electron-toolkit/preload'
-import type { FileData, SanketApi, SettingValue } from './index.d'
+import type {
+  EncryptPdfOptions,
+  FileData,
+  SanketApi,
+  SettingValue,
+  SignPdfOptions
+} from './index.d'
 
 const toFileData = (res: FileData | null): FileData | null => {
   if (!res) return null
@@ -22,6 +28,12 @@ const api: SanketApi = {
   saveFile: (data: Uint8Array, defaultPath?: string) =>
     ipcRenderer.invoke('dialog:saveFile', data, defaultPath) as Promise<string | null>,
   print: () => ipcRenderer.invoke('print:pdf') as Promise<boolean>,
+  signPdf: (data: Uint8Array, options: SignPdfOptions) =>
+    ipcRenderer.invoke('security:signPdf', data, options) as Promise<Uint8Array>,
+  encryptPdf: (data: Uint8Array, options: EncryptPdfOptions) =>
+    ipcRenderer.invoke('security:encryptPdf', data, options) as Promise<Uint8Array>,
+  hasSignature: (data: Uint8Array) =>
+    ipcRenderer.invoke('security:hasSignature', data) as Promise<boolean>,
   getSettings: () => ipcRenderer.invoke('settings:get') as Promise<Record<string, unknown>>,
   setSetting: (key: string, value: SettingValue) =>
     ipcRenderer.invoke('settings:set', key, value) as Promise<boolean>,

@@ -3,6 +3,13 @@ import { join } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import fs from 'fs'
 import { extname } from 'path'
+import {
+  encryptPdfDocument,
+  hasPdfSignature,
+  signPdfDocument,
+  type EncryptPdfOptions,
+  type SignPdfOptions
+} from './security'
 
 const MAX_PDF_SIZE_BYTES = 250 * 1024 * 1024
 const MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024
@@ -179,6 +186,26 @@ app.whenReady().then(() => {
       return null
     }
   })
+
+  ipcMain.handle('security:signPdf', async (_, data: Uint8Array, options: SignPdfOptions) => {
+    try {
+      return await signPdfDocument(data, options)
+    } catch (error) {
+      console.error('PDF signing failed:', error)
+      throw new Error(error instanceof Error ? error.message : 'PDF signing failed.')
+    }
+  })
+
+  ipcMain.handle('security:encryptPdf', async (_, data: Uint8Array, options: EncryptPdfOptions) => {
+    try {
+      return await encryptPdfDocument(data, options)
+    } catch (error) {
+      console.error('PDF encryption failed:', error)
+      throw new Error(error instanceof Error ? error.message : 'PDF encryption failed.')
+    }
+  })
+
+  ipcMain.handle('security:hasSignature', async (_, data: Uint8Array) => hasPdfSignature(data))
 
   ipcMain.handle('print:pdf', async (event) => {
     try {
