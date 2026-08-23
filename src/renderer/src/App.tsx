@@ -5,6 +5,7 @@ import { PDFViewer } from './components/PDFViewer'
 import { ThumbnailViewer } from './components/ThumbnailViewer'
 import { OutlineViewer } from './components/OutlineViewer'
 import { PasswordHost } from './components/PasswordHost'
+import { CommandPalette } from './components/CommandPalette'
 import { useAppStore } from './store'
 import { useAnnotationStore } from './features/annotate/annotationStore'
 import { FeedbackHost } from './components/FeedbackHost'
@@ -17,6 +18,23 @@ function App(): React.JSX.Element {
   const { notify, confirm } = useFeedbackStore()
   const hasUnsavedChanges = annotations.length > 0 || pageOrder !== null
   const [isDragging, setIsDragging] = useState(false)
+  const [showCommandPalette, setShowCommandPalette] = useState(false)
+
+  useEffect(() => {
+    const openPalette = (): void => setShowCommandPalette(true)
+    const handleKeyDown = (event: KeyboardEvent): void => {
+      if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') {
+        event.preventDefault()
+        setShowCommandPalette(true)
+      }
+    }
+    window.addEventListener('open-command-palette', openPalette)
+    window.addEventListener('keydown', handleKeyDown)
+    return () => {
+      window.removeEventListener('open-command-palette', openPalette)
+      window.removeEventListener('keydown', handleKeyDown)
+    }
+  }, [])
 
   useEffect(() => {
     const handleBeforeUnload = (event: BeforeUnloadEvent): void => {
@@ -96,6 +114,7 @@ function App(): React.JSX.Element {
     >
       <FeedbackHost />
       <PasswordHost />
+      {showCommandPalette && <CommandPalette onClose={() => setShowCommandPalette(false)} />}
       <Toolbar />
       <div className="flex flex-1 overflow-hidden relative">
         <Sidebar>

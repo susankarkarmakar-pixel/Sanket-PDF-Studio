@@ -9,6 +9,7 @@ import {
   Search,
   ChevronUp,
   ChevronDown,
+  Command,
   Printer,
   Save,
   Undo2,
@@ -138,6 +139,14 @@ export function Toolbar(): React.JSX.Element {
           aria-label="Redo"
         >
           <Redo2 size={20} />
+        </button>
+        <button
+          onClick={() => window.dispatchEvent(new Event('open-command-palette'))}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+          title="Command palette (Ctrl/Cmd+K)"
+          aria-label="Open command palette"
+        >
+          <Command size={20} />
         </button>
         <button
           onClick={() => window.api.print()}
