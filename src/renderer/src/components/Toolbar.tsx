@@ -1,6 +1,7 @@
 import { useAppStore } from '../store'
 import {
   FolderOpen,
+  Info,
   Settings,
   ZoomIn,
   ZoomOut,
@@ -22,6 +23,7 @@ import { useAnnotationStore } from '../features/annotate/annotationStore'
 import { flattenAnnotations } from '../features/annotate/saveAnnotations'
 import { useFeedbackStore } from '../feedbackStore'
 import { AnnotationPropertiesPanel } from '../features/annotate/AnnotationPropertiesPanel'
+import { MetadataModal } from '../features/metadata/MetadataModal'
 
 export function Toolbar(): React.JSX.Element {
   const {
@@ -57,6 +59,7 @@ export function Toolbar(): React.JSX.Element {
   const { confirm, notify } = useFeedbackStore()
   const [isSaving, setIsSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [showMetadata, setShowMetadata] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -284,6 +287,15 @@ export function Toolbar(): React.JSX.Element {
         </div>
 
         <button
+          onClick={() => setShowMetadata(true)}
+          disabled={!pdfData}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
+          title="Edit PDF metadata"
+          aria-label="Edit PDF metadata"
+        >
+          <Info size={20} />
+        </button>
+        <button
           onClick={() => setShowSettings(true)}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
           title="Settings"
@@ -291,6 +303,7 @@ export function Toolbar(): React.JSX.Element {
           <Settings size={20} />
         </button>
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
+        {showMetadata && <MetadataModal onClose={() => setShowMetadata(false)} />}
       </div>
     </header>
   )
