@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Toolbar } from './components/Toolbar'
 import { Sidebar } from './components/Sidebar'
 import { PDFViewer } from './components/PDFViewer'
@@ -10,15 +10,46 @@ import { useAppStore } from './store'
 import { useAnnotationStore } from './features/annotate/annotationStore'
 import { FeedbackHost } from './components/FeedbackHost'
 import { useFeedbackStore } from './feedbackStore'
+import { readPdfDraft, savePdfDraft } from './draftStorage'
 
 function App(): React.JSX.Element {
-  const { loadSettings, setPdf, pdfData, recentFiles, addRecentFile, removeRecentFile, pageOrder } =
-    useAppStore()
-  const { annotations } = useAnnotationStore()
+  const {
+    loadSettings,
+    setPdf,
+    pdfData,
+    pdfPath,
+    recentFiles,
+    addRecentFile,
+    removeRecentFile,
+    pageOrder,
+    setPageOrder
+  } = useAppStore()
+  const { annotations, restoreAnnotations } = useAnnotationStore()
   const { notify, confirm } = useFeedbackStore()
   const hasUnsavedChanges = annotations.length > 0 || pageOrder !== null
+  const recoveredDraftPath = useRef<string | null>(null)
   const [isDragging, setIsDragging] = useState(false)
   const [showCommandPalette, setShowCommandPalette] = useState(false)
+
+  useEffect(() => {
+    if (!pdfPath) return
+    const draft = readPdfDraft(pdfPath)
+    if (
+      draft &&
+      recoveredDraftPath.current !== pdfPath &&
+      (draft.annotations.length > 0 || draft.pageOrder !== null)
+    ) {
+      restoreAnnotations(draft.annotations)
+      setPageOrder(draft.pageOrder)
+      notify('Recovered unsaved edits from the last session.', 'info')
+    }
+    recoveredDraftPath.current = pdfPath
+  }, [notify, pdfPath, restoreAnnotations, setPageOrder])
+
+  useEffect(() => {
+    if (!pdfPath || (!hasUnsavedChanges && annotations.length === 0)) return
+    savePdfDraft({ pdfPath, annotations, pageOrder, savedAt: Date.now() })
+  }, [annotations, hasUnsavedChanges, pageOrder, pdfPath])
 
   useEffect(() => {
     const openPalette = (): void => setShowCommandPalette(true)

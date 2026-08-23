@@ -97,6 +97,7 @@ interface AnnotationState {
   deleteAnnotation: (id: string) => void
   setSelectedAnnotationId: (id: string | null) => void
   clearAnnotations: () => void
+  restoreAnnotations: (annotations: Annotation[]) => void
   undo: () => void
   redo: () => void
 }
@@ -168,6 +169,14 @@ export const useAnnotationStore = create<AnnotationState>((set) => ({
   clearAnnotations: () =>
     set({
       annotations: [],
+      selectedAnnotationId: null,
+      history: [],
+      future: [],
+      historyAction: null
+    }),
+  restoreAnnotations: (annotations) =>
+    set({
+      annotations: structuredClone(annotations),
       selectedAnnotationId: null,
       history: [],
       future: [],

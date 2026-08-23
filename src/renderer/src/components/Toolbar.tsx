@@ -24,6 +24,7 @@ import { useAnnotationStore } from '../features/annotate/annotationStore'
 import { flattenAnnotations } from '../features/annotate/saveAnnotations'
 import { useFeedbackStore } from '../feedbackStore'
 import { AnnotationPropertiesPanel } from '../features/annotate/AnnotationPropertiesPanel'
+import { clearPdfDraft } from '../draftStorage'
 import { MetadataModal } from '../features/metadata/MetadataModal'
 
 export function Toolbar(): React.JSX.Element {
@@ -185,6 +186,7 @@ export function Toolbar(): React.JSX.Element {
               const defaultPath = sourceName ? `${sourceName}-edited.pdf` : 'annotated-document.pdf'
               const savedPath = await window.api.saveFile(newPdfData, defaultPath)
               if (savedPath) {
+                if (pdfPath) clearPdfDraft(pdfPath)
                 setPdf(savedPath, newPdfData)
                 useAppStore
                   .getState()
