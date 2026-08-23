@@ -13,7 +13,8 @@ import {
   Printer,
   Save,
   Undo2,
-  Redo2
+  Redo2,
+  WandSparkles
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AnnotationToolbar } from '../features/annotate/AnnotationToolbar'
@@ -26,6 +27,7 @@ import { useFeedbackStore } from '../feedbackStore'
 import { AnnotationPropertiesPanel } from '../features/annotate/AnnotationPropertiesPanel'
 import { clearPdfDraft } from '../draftStorage'
 import { MetadataModal } from '../features/metadata/MetadataModal'
+import { DocumentToolsModal } from '../features/import-export/DocumentToolsModal'
 
 export function Toolbar(): React.JSX.Element {
   const {
@@ -62,6 +64,7 @@ export function Toolbar(): React.JSX.Element {
   const [isSaving, setIsSaving] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
   const [showMetadata, setShowMetadata] = useState(false)
+  const [showDocumentTools, setShowDocumentTools] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -321,6 +324,15 @@ export function Toolbar(): React.JSX.Element {
         </div>
 
         <button
+          onClick={() => setShowDocumentTools(true)}
+          disabled={!pdfData}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
+          title="Document tools"
+          aria-label="Open document tools"
+        >
+          <WandSparkles size={20} />
+        </button>
+        <button
           onClick={() => setShowMetadata(true)}
           disabled={!pdfData}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
@@ -338,6 +350,7 @@ export function Toolbar(): React.JSX.Element {
         </button>
         {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
         {showMetadata && <MetadataModal onClose={() => setShowMetadata(false)} />}
+        {showDocumentTools && <DocumentToolsModal onClose={() => setShowDocumentTools(false)} />}
       </div>
     </header>
   )
