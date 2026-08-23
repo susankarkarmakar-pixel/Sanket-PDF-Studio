@@ -16,6 +16,7 @@ export type SettingValue = string | number | RecentFile[] | { id: string; dataUr
 export interface SanketApi {
   openFile: () => Promise<FileData | null>
   openFiles: () => Promise<FileData[]>
+  openImages: () => Promise<FileData[]>
   readFile: (filePath: string) => Promise<FileData | null>
   saveFile: (data: Uint8Array, defaultPath?: string) => Promise<string | null>
   print: () => Promise<boolean>

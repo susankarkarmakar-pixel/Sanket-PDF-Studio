@@ -3,6 +3,7 @@ import {
   Copy,
   CopyPlus,
   FilePlus2,
+  ImagePlus,
   Files,
   Loader2,
   RotateCw,
@@ -23,6 +24,7 @@ import {
   rearrangePdf,
   rotatePages
 } from './pdfPageOps'
+import { imagesToPdf } from '../import-export/imageToPdf'
 
 type PageOperation = (pdfData: Uint8Array) => Promise<Uint8Array>
 
@@ -82,6 +84,24 @@ export function PageToolsMenu(): React.JSX.Element {
 
   const handleDuplicate = async (): Promise<void> => {
     await runPageOperation((data) => duplicatePages(data, selectedPages), 'pages-duplicated.pdf')
+  }
+
+  const handleImagesToPdf = async (): Promise<void> => {
+    if (isProcessing) return
+    const images = await window.api.openImages()
+    if (images.length === 0) return
+    setIsProcessing(true)
+    try {
+      await saveAndOpen(await imagesToPdf(images), 'images-document.pdf')
+    } catch (error) {
+      console.error(error)
+      notify(
+        error instanceof Error ? error.message : 'Unable to create a PDF from these images.',
+        'error'
+      )
+    } finally {
+      setIsProcessing(false)
+    }
   }
 
   const handleInsertPdf = async (): Promise<void> => {
@@ -159,6 +179,15 @@ export function PageToolsMenu(): React.JSX.Element {
           aria-label="Split PDF"
         >
           <Scissors size={16} />
+        </button>
+        <button
+          onClick={handleImagesToPdf}
+          disabled={isProcessing}
+          className={buttonClass}
+          title="Create PDF from images"
+          aria-label="Create PDF from images"
+        >
+          <ImagePlus size={16} />
         </button>
         <button
           onClick={handleInsertPdf}

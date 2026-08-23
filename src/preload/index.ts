@@ -13,6 +13,10 @@ const api: SanketApi = {
     const files = (await ipcRenderer.invoke('dialog:openFiles')) as FileData[]
     return files.map((file) => ({ path: file.path, data: new Uint8Array(file.data) }))
   },
+  openImages: async () => {
+    const files = (await ipcRenderer.invoke('dialog:openImages')) as FileData[]
+    return files.map((file) => ({ path: file.path, data: new Uint8Array(file.data) }))
+  },
   readFile: async (filePath: string) =>
     toFileData(await ipcRenderer.invoke('fs:readFile', filePath)),
   saveFile: (data: Uint8Array, defaultPath?: string) =>

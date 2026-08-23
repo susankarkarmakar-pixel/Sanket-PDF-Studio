@@ -5,9 +5,23 @@ import fs from 'fs'
 import { extname } from 'path'
 
 const MAX_PDF_SIZE_BYTES = 250 * 1024 * 1024
+const MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024
+const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg'])
 const SETTINGS_KEYS = new Set(['theme', 'defaultZoom', 'recentFiles', 'savedSignatures'])
 
 type FileData = { path: string; data: Uint8Array }
+
+function readImageFile(filePath: string): FileData | null {
+  try {
+    if (!IMAGE_EXTENSIONS.has(extname(filePath).toLowerCase())) return null
+    const stats = fs.statSync(filePath)
+    if (!stats.isFile() || stats.size > MAX_IMAGE_SIZE_BYTES) return null
+    return { path: filePath, data: new Uint8Array(fs.readFileSync(filePath)) }
+  } catch (error) {
+    console.error('Failed to read image:', error)
+    return null
+  }
+}
 
 function readPdfFile(filePath: string): FileData | null {
   try {
@@ -119,6 +133,15 @@ app.whenReady().then(() => {
     }
 
     return readPdfFile(filePaths[0])
+  })
+
+  ipcMain.handle('dialog:openImages', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openFile', 'multiSelections'],
+      filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg'] }]
+    })
+    if (canceled) return []
+    return filePaths.map(readImageFile).filter((file): file is FileData => file !== null)
   })
 
   ipcMain.handle('dialog:openFiles', async () => {
