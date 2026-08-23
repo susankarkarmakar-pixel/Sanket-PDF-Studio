@@ -6,6 +6,7 @@ type ScaleType = number | 'page-width' | 'page-fit'
 interface AppState {
   theme: 'light' | 'dark' | 'system'
   defaultZoom: ScaleType
+  ocrLanguages: string
   recentFiles: { path: string; name: string; lastOpened: number }[]
   pdfPath: string | null
   pdfData: Uint8Array | null
@@ -18,6 +19,7 @@ interface AppState {
   searchHighlightTotal: number
   setTheme: (theme: 'light' | 'dark' | 'system') => void
   setDefaultZoom: (zoom: ScaleType) => void
+  setOcrLanguages: (languages: string) => void
   addRecentFile: (path: string, name: string) => void
   removeRecentFile: (path: string) => void
   clearRecentFiles: () => void
@@ -42,6 +44,7 @@ interface AppState {
 export const useAppStore = create<AppState>((set) => ({
   theme: 'system',
   defaultZoom: 1.0,
+  ocrLanguages: 'eng',
   recentFiles: [],
   pdfPath: null,
   pdfData: null,
@@ -59,6 +62,10 @@ export const useAppStore = create<AppState>((set) => ({
   setDefaultZoom: (defaultZoom) => {
     set({ defaultZoom })
     window.api.setSetting('defaultZoom', defaultZoom)
+  },
+  setOcrLanguages: (ocrLanguages) => {
+    set({ ocrLanguages })
+    window.api.setSetting('ocrLanguages', ocrLanguages)
   },
   addRecentFile: (path, name) =>
     set((state) => {
@@ -83,6 +90,8 @@ export const useAppStore = create<AppState>((set) => ({
     set((state) => ({
       theme: settings.theme || state.theme,
       defaultZoom: settings.defaultZoom || state.defaultZoom,
+      ocrLanguages:
+        typeof settings.ocrLanguages === 'string' ? settings.ocrLanguages : state.ocrLanguages,
       recentFiles: settings.recentFiles || state.recentFiles
     }))
   },

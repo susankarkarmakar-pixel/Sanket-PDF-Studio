@@ -3,22 +3,28 @@ import { X } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { useFeedbackStore } from '../../feedbackStore'
 import { ocrPdf, type OcrProgress } from './ocrPdf'
+import { OCR_LANGUAGE_PACKS, normalizeOcrLanguages } from './ocrLanguages'
 
 interface OcrModalProps {
   onClose: () => void
 }
 
 export function OcrModal({ onClose }: OcrModalProps): React.JSX.Element {
-  const { pdfData, setPdf } = useAppStore()
+  const { pdfData, setPdf, ocrLanguages, setOcrLanguages } = useAppStore()
   const { notify } = useFeedbackStore()
   const [progress, setProgress] = useState<OcrProgress | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [selectedLanguages, setSelectedLanguages] = useState<string[]>(
+    normalizeOcrLanguages(ocrLanguages).split('+')
+  )
 
   const handleOcr = async (): Promise<void> => {
     if (!pdfData || isProcessing) return
     setIsProcessing(true)
     try {
-      const output = await ocrPdf(pdfData, setProgress)
+      const languages = normalizeOcrLanguages(selectedLanguages.join('+'))
+      setOcrLanguages(languages)
+      const output = await ocrPdf(pdfData, setProgress, languages)
       const savedPath = await window.api.saveFile(output, 'searchable-document.pdf')
       if (savedPath) {
         setPdf(savedPath, output)
@@ -62,8 +68,34 @@ export function OcrModal({ onClose }: OcrModalProps): React.JSX.Element {
         </div>
         <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">
           OCR renders each page locally and adds an invisible searchable text layer. The original
-          visual content is preserved.
+          visual content is preserved. Select every language that may appear in the document.
         </p>
+        <fieldset className="mt-4 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+          <legend className="px-1 text-sm font-medium">Language packs</legend>
+          <div className="grid grid-cols-2 gap-2">
+            {OCR_LANGUAGE_PACKS.map((pack) => (
+              <label key={pack.code} className="flex items-center gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  checked={selectedLanguages.includes(pack.code)}
+                  disabled={isProcessing}
+                  onChange={(event) =>
+                    setSelectedLanguages((current) =>
+                      event.target.checked
+                        ? [...new Set([...current, pack.code])]
+                        : current.filter((code) => code !== pack.code)
+                    )
+                  }
+                  className="accent-primary"
+                />
+                <span>{pack.label}</span>
+              </label>
+            ))}
+          </div>
+          <p className="mt-2 text-xs text-gray-500">
+            Selected packs: {normalizeOcrLanguages(selectedLanguages.join('+'))}
+          </p>
+        </fieldset>
         {progress && (
           <div className="mt-5">
             <div className="flex justify-between text-xs text-gray-500">

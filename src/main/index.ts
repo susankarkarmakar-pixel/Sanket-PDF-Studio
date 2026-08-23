@@ -7,7 +7,13 @@ import { extname } from 'path'
 const MAX_PDF_SIZE_BYTES = 250 * 1024 * 1024
 const MAX_IMAGE_SIZE_BYTES = 50 * 1024 * 1024
 const IMAGE_EXTENSIONS = new Set(['.png', '.jpg', '.jpeg'])
-const SETTINGS_KEYS = new Set(['theme', 'defaultZoom', 'recentFiles', 'savedSignatures'])
+const SETTINGS_KEYS = new Set([
+  'theme',
+  'defaultZoom',
+  'ocrLanguages',
+  'recentFiles',
+  'savedSignatures'
+])
 
 type FileData = { path: string; data: Uint8Array }
 

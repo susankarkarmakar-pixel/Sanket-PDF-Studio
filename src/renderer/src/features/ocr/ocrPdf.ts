@@ -1,6 +1,17 @@
 import { createWorker, type LoggerMessage } from 'tesseract.js'
 import * as pdfjsLib from 'pdfjs-dist'
 import { PDFDocument, rgb, StandardFonts } from 'pdf-lib'
+import { normalizeOcrLanguages } from './ocrLanguages'
+
+interface OcrLine {
+  text: string
+  bbox: { x0: number; y0: number; x1: number; y1: number }
+}
+
+interface OcrPageLayout {
+  text: string
+  lines?: OcrLine[]
+}
 
 export interface OcrProgress {
   page: number
@@ -26,14 +37,15 @@ const renderPage = async (
 
 export const ocrPdf = async (
   pdfData: Uint8Array,
-  onProgress?: (progress: OcrProgress) => void
+  onProgress?: (progress: OcrProgress) => void,
+  languages = 'eng'
 ): Promise<Uint8Array> => {
   const pdf = await PDFDocument.load(pdfData)
   const font = await pdf.embedFont(StandardFonts.Helvetica)
   const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
   const pdfjsDocument = await loadingTask.promise
   const totalPages = pdfjsDocument.numPages
-  const worker = await createWorker('eng', undefined, {
+  const worker = await createWorker(normalizeOcrLanguages(languages), undefined, {
     logger: (message: LoggerMessage) => {
       const page = Number(message.userJobId || 1)
       onProgress?.({
@@ -50,20 +62,33 @@ export const ocrPdf = async (
       onProgress?.({ page: pageNumber, totalPages, progress: 0, status: 'Rendering page' })
       const canvas = await renderPage(pdfjsDocument, pageNumber)
       const result = await worker.recognize(canvas, {}, undefined, String(pageNumber))
-      const text = result.data.text.trim()
-      if (text) {
-        const page = pdf.getPage(pageNumber - 1)
-        const { height, width } = page.getSize()
-        const lines = text
-          .split(/\r?\n/)
-          .map((line) => line.trim())
-          .filter(Boolean)
-        page.drawText(lines.join('\n'), {
+      const page = pdf.getPage(pageNumber - 1)
+      const { height, width } = page.getSize()
+      const ocrPage = result.data as unknown as OcrPageLayout
+      const lines = ocrPage.lines ?? []
+      if (lines.length > 0) {
+        const xScale = width / canvas.width
+        const yScale = height / canvas.height
+        for (const line of lines) {
+          const lineWidth = Math.max(1, line.bbox.x1 - line.bbox.x0) * xScale
+          const lineHeight = Math.max(8, line.bbox.y1 - line.bbox.y0) * yScale
+          page.drawText(line.text.trim(), {
+            x: Math.max(0, Math.min(width - 4, line.bbox.x0 * xScale)),
+            y: Math.max(4, height - line.bbox.y1 * yScale),
+            font,
+            size: Math.max(6, Math.min(24, lineHeight)),
+            lineHeight,
+            maxWidth: Math.max(8, Math.min(width - 8, lineWidth + 12)),
+            color: rgb(1, 1, 1),
+            opacity: 0.01
+          })
+        }
+      } else if (ocrPage.text.trim()) {
+        page.drawText(ocrPage.text.trim(), {
           x: 10,
           y: Math.max(10, height - 24),
           font,
           size: 8,
-          lineHeight: 10,
           maxWidth: Math.max(20, width - 20),
           color: rgb(1, 1, 1),
           opacity: 0.01
