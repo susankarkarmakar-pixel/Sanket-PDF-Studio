@@ -14,7 +14,10 @@ export const mergePdfs = async (fileDatas: Uint8Array[]): Promise<Uint8Array> =>
 }
 
 // Split PDF by page ranges (e.g., '1-5, 6-10, 11-')
-export const splitPdf = async (pdfData: Uint8Array, rangesString: string): Promise<Uint8Array[]> => {
+export const splitPdf = async (
+  pdfData: Uint8Array,
+  rangesString: string
+): Promise<Uint8Array[]> => {
   const pdf = await PDFDocument.load(pdfData)
   const numPages = pdf.getPageCount()
 
@@ -32,12 +35,15 @@ export const splitPdf = async (pdfData: Uint8Array, rangesString: string): Promi
 }
 
 // Rearrange PDF pages
-export const rearrangePdf = async (pdfData: Uint8Array, newOrder: number[]): Promise<Uint8Array> => {
+export const rearrangePdf = async (
+  pdfData: Uint8Array,
+  newOrder: number[]
+): Promise<Uint8Array> => {
   const pdf = await PDFDocument.load(pdfData)
   const newPdf = await PDFDocument.create()
 
   // newOrder is 1-based, copyPages needs 0-based
-  const indices = newOrder.map(page => page - 1)
+  const indices = newOrder.map((page) => page - 1)
   const copiedPages = await newPdf.copyPages(pdf, indices)
   copiedPages.forEach((page) => newPdf.addPage(page))
 
@@ -45,12 +51,15 @@ export const rearrangePdf = async (pdfData: Uint8Array, newOrder: number[]): Pro
 }
 
 // Extract specific pages
-export const extractPages = async (pdfData: Uint8Array, pageNumbers: number[]): Promise<Uint8Array> => {
+export const extractPages = async (
+  pdfData: Uint8Array,
+  pageNumbers: number[]
+): Promise<Uint8Array> => {
   const pdf = await PDFDocument.load(pdfData)
   const newPdf = await PDFDocument.create()
 
   // pageNumbers is 1-based, copyPages needs 0-based
-  const indices = pageNumbers.map(page => page - 1).sort((a, b) => a - b)
+  const indices = pageNumbers.map((page) => page - 1).sort((a, b) => a - b)
   const copiedPages = await newPdf.copyPages(pdf, indices)
   copiedPages.forEach((page) => newPdf.addPage(page))
 
@@ -58,9 +67,12 @@ export const extractPages = async (pdfData: Uint8Array, pageNumbers: number[]): 
 }
 
 // Helper to parse '1-5, 6-10, 11-' into arrays of 0-based indices
-const parseRanges = (rangesString: string, maxPages: number): number[][] => {
+export const parseRanges = (rangesString: string, maxPages: number): number[][] => {
   const ranges: number[][] = []
-  const parts = rangesString.split(',').map(s => s.trim()).filter(s => s)
+  const parts = rangesString
+    .split(',')
+    .map((s) => s.trim())
+    .filter((s) => s)
 
   for (const part of parts) {
     const range: number[] = []
@@ -87,7 +99,7 @@ const parseRanges = (rangesString: string, maxPages: number): number[][] => {
   }
 
   if (ranges.length === 0) {
-      throw new Error('No valid ranges provided')
+    throw new Error('No valid ranges provided')
   }
 
   return ranges

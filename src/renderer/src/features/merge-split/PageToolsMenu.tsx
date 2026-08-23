@@ -5,79 +5,104 @@ import { SplitModal } from './SplitModal'
 import { useAppStore } from '../../store'
 import { extractPages, rearrangePdf } from './pdfPageOps'
 
-export function PageToolsMenu() {
+export function PageToolsMenu(): React.JSX.Element {
   const [showMerge, setShowMerge] = useState(false)
   const [showSplit, setShowSplit] = useState(false)
 
-  const { pdfData, selectedPagesForExtraction, clearSelectedPagesForExtraction, setPdf, pageOrder, setPageOrder } = useAppStore()
+  const {
+    pdfData,
+    selectedPagesForExtraction,
+    clearSelectedPagesForExtraction,
+    setPdf,
+    pageOrder,
+    setPageOrder
+  } = useAppStore()
 
-  const handleMergeSuccess = async (newPdfData: Uint8Array) => {
+  const handleMergeSuccess = async (newPdfData: Uint8Array): Promise<void> => {
     setShowMerge(false)
     const savedPath = await window.api.saveFile(newPdfData, 'merged-document.pdf')
     if (savedPath) {
-      if (confirm(`Merged successfully and saved to ${savedPath}.\nDo you want to open the new file?`)) {
-         const fileData = await window.api.readFile(savedPath)
-         if (fileData) setPdf(fileData.path, fileData.data)
+      if (
+        confirm(`Merged successfully and saved to ${savedPath}.\nDo you want to open the new file?`)
+      ) {
+        const fileData = await window.api.readFile(savedPath)
+        if (fileData) {
+          setPdf(fileData.path, fileData.data)
+          useAppStore
+            .getState()
+            .addRecentFile(fileData.path, fileData.path.split(/[\\/]/).pop() || 'Unknown')
+        }
       }
     }
   }
 
-  const handleSplitSuccess = async (newPdfs: Uint8Array[]) => {
+  const handleSplitSuccess = async (newPdfs: Uint8Array[]): Promise<void> => {
     setShowSplit(false)
-    // We ideally want a directory picker here, but for simplicity we'll just save them sequentially with a prefix
-
-    if (newPdfs.length > 0) {
-      const firstSave = await window.api.saveFile(newPdfs[0], `split-part-1.pdf`)
-      if (!firstSave) return // User cancelled
-
-    }
-
     let successCount = 0
-    for (let i = 0; i < newPdfs.length; i++) {
-        // We already prompted for the first one, for subsequent ones we'd ideally not prompt if we had a dir picker.
-        // But since we only have saveFile which prompts, we will prompt for each.
-        // Real app should add a 'showOpenDialog' with properties: ['openDirectory'] for output dir selection.
-        const savedPath = await window.api.saveFile(newPdfs[i], `split-part-${i+1}.pdf`)
-        if (savedPath) successCount++
+
+    for (let i = 0; i < newPdfs.length; i += 1) {
+      const savedPath = await window.api.saveFile(newPdfs[i], `split-part-${i + 1}.pdf`)
+      if (!savedPath) break
+      successCount += 1
     }
 
-    alert(`Successfully split into ${successCount} files.`)
+    if (successCount > 0) {
+      alert(`Successfully split into ${successCount} file${successCount === 1 ? '' : 's'}.`)
+    }
   }
 
-  const handleExtract = async () => {
+  const handleExtract = async (): Promise<void> => {
     if (!pdfData || selectedPagesForExtraction.length === 0) return
     try {
       const extractedData = await extractPages(pdfData, selectedPagesForExtraction)
       const savedPath = await window.api.saveFile(extractedData, 'extracted-pages.pdf')
       if (savedPath) {
         clearSelectedPagesForExtraction()
-        if (confirm(`Extracted successfully and saved to ${savedPath}.\nDo you want to open the new file?`)) {
-           const fileData = await window.api.readFile(savedPath)
-           if (fileData) setPdf(fileData.path, fileData.data)
+        if (
+          confirm(
+            `Extracted successfully and saved to ${savedPath}.\nDo you want to open the new file?`
+          )
+        ) {
+          const fileData = await window.api.readFile(savedPath)
+          if (fileData) {
+            setPdf(fileData.path, fileData.data)
+            useAppStore
+              .getState()
+              .addRecentFile(fileData.path, fileData.path.split(/[\\/]/).pop() || 'Unknown')
+          }
         }
       }
     } catch (err) {
       console.error(err)
-      alert("Extraction failed.")
+      alert('Extraction failed.')
     }
   }
 
-  const handleApplyOrder = async () => {
-     if (!pdfData || !pageOrder) return
-     try {
-       const reorderedData = await rearrangePdf(pdfData, pageOrder)
-       const savedPath = await window.api.saveFile(reorderedData, 'reordered-document.pdf')
-       if (savedPath) {
-         setPageOrder(null)
-         if (confirm(`Reordered successfully and saved to ${savedPath}.\nDo you want to open the new file?`)) {
-            const fileData = await window.api.readFile(savedPath)
-            if (fileData) setPdf(fileData.path, fileData.data)
-         }
-       }
-     } catch (err) {
-       console.error(err)
-       alert("Reorder failed.")
-     }
+  const handleApplyOrder = async (): Promise<void> => {
+    if (!pdfData || !pageOrder) return
+    try {
+      const reorderedData = await rearrangePdf(pdfData, pageOrder)
+      const savedPath = await window.api.saveFile(reorderedData, 'reordered-document.pdf')
+      if (savedPath) {
+        setPageOrder(null)
+        if (
+          confirm(
+            `Reordered successfully and saved to ${savedPath}.\nDo you want to open the new file?`
+          )
+        ) {
+          const fileData = await window.api.readFile(savedPath)
+          if (fileData) {
+            setPdf(fileData.path, fileData.data)
+            useAppStore
+              .getState()
+              .addRecentFile(fileData.path, fileData.path.split(/[\\/]/).pop() || 'Unknown')
+          }
+        }
+      }
+    } catch (err) {
+      console.error(err)
+      alert('Reorder failed.')
+    }
   }
 
   const hasOrderChanged = pageOrder !== null
@@ -108,21 +133,33 @@ export function PageToolsMenu() {
             className="flex items-center gap-1 p-1.5 bg-primary/20 text-primary hover:bg-primary/30 rounded text-sm transition-colors font-semibold ml-2"
             title={`Extract ${selectedPagesForExtraction.length} pages`}
           >
-            <CopyPlus size={16} /> <span className="hidden xl:inline">Extract ({selectedPagesForExtraction.length})</span>
+            <CopyPlus size={16} />{' '}
+            <span className="hidden xl:inline">Extract ({selectedPagesForExtraction.length})</span>
           </button>
         )}
 
         {hasOrderChanged && (
-           <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded ml-2 text-sm">
-             <span className="font-semibold">Order changed</span>
-             <button onClick={handleApplyOrder} className="ml-2 hover:underline">Save As</button>
-             <button onClick={() => setPageOrder(null)} className="ml-2 text-red-500 hover:underline">Discard</button>
-           </div>
+          <div className="flex items-center gap-1 bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200 px-2 py-1 rounded ml-2 text-sm">
+            <span className="font-semibold">Order changed</span>
+            <button onClick={handleApplyOrder} className="ml-2 hover:underline">
+              Save As
+            </button>
+            <button
+              onClick={() => setPageOrder(null)}
+              className="ml-2 text-red-500 hover:underline"
+            >
+              Discard
+            </button>
+          </div>
         )}
       </div>
 
-      {showMerge && <MergeModal onClose={() => setShowMerge(false)} onSuccess={handleMergeSuccess} />}
-      {showSplit && <SplitModal onClose={() => setShowSplit(false)} onSuccess={handleSplitSuccess} />}
+      {showMerge && (
+        <MergeModal onClose={() => setShowMerge(false)} onSuccess={handleMergeSuccess} />
+      )}
+      {showSplit && (
+        <SplitModal onClose={() => setShowSplit(false)} onSuccess={handleSplitSuccess} />
+      )}
     </>
   )
 }
