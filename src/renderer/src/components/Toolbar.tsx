@@ -26,6 +26,7 @@ export function Toolbar(): React.JSX.Element {
     theme,
     setPdf,
     pdfData,
+    pdfPath,
     scale,
     setScale,
     currentPage,
@@ -132,18 +133,17 @@ export function Toolbar(): React.JSX.Element {
             setIsSaving(true)
             try {
               const newPdfData = await flattenAnnotations(pdfData, annotations)
-              const savedPath = await window.api.saveFile(newPdfData, 'annotated-document.pdf')
+              const sourceName = pdfPath
+                ?.split(/[\\/]/)
+                .pop()
+                ?.replace(/\.pdf$/i, '')
+              const defaultPath = sourceName ? `${sourceName}-edited.pdf` : 'annotated-document.pdf'
+              const savedPath = await window.api.saveFile(newPdfData, defaultPath)
               if (savedPath) {
-                // Toast logic could go here
-                if (
-                  confirm(`Saved successfully to ${savedPath}.\nDo you want to open the new file?`)
-                ) {
-                  const fileData = await window.api.readFile(savedPath)
-                  if (fileData) {
-                    setPdf(fileData.path, fileData.data)
-                    useAnnotationStore.getState().clearAnnotations()
-                  }
-                }
+                setPdf(savedPath, newPdfData)
+                useAppStore
+                  .getState()
+                  .addRecentFile(savedPath, savedPath.split(/[\\/]/).pop() || 'Edited PDF')
               }
             } catch (err) {
               console.error(err)
