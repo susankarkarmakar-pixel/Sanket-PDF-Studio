@@ -60,6 +60,10 @@ export function SecurityModal({ onClose }: SecurityModalProps): React.JSX.Elemen
         validFrom: null,
         validTo: null,
         fingerprint: null,
+        trustStatus: 'unknown',
+        trustSource: null,
+        revocationStatus: 'unknown',
+        revocationSource: null,
         error: error instanceof Error ? error.message : 'Signature verification failed.'
       })
     } finally {
@@ -137,6 +141,20 @@ export function SecurityModal({ onClose }: SecurityModalProps): React.JSX.Elemen
     }
   }
 
+  const trustLabel: Record<PdfSignatureVerification['trustStatus'], string> = {
+    trusted: 'Trusted by this platform',
+    untrusted: 'Not trusted by this platform',
+    expired: 'Certificate expired or not yet valid',
+    unknown: 'Trust status unknown'
+  }
+  const revocationLabel: Record<PdfSignatureVerification['revocationStatus'], string> = {
+    good: 'Not revoked',
+    revoked: 'Revoked',
+    offline: 'Could not check while offline',
+    unknown: 'Revocation status unknown',
+    'not-available': 'No OCSP or CRL endpoint available'
+  }
+
   return (
     <div className="fixed inset-0 z-[95] flex items-center justify-center bg-black/50 p-4">
       <div
@@ -204,6 +222,17 @@ export function SecurityModal({ onClose }: SecurityModalProps): React.JSX.Elemen
                         ? 'Signature integrity valid'
                         : 'Signature integrity could not be verified'}
                     </p>
+                    <div className="grid gap-2 sm:grid-cols-2">
+                      <p>
+                        <strong>Platform trust:</strong> {trustLabel[verification.trustStatus]}
+                        {verification.trustSource ? ` (${verification.trustSource})` : ''}
+                      </p>
+                      <p>
+                        <strong>Revocation:</strong>{' '}
+                        {revocationLabel[verification.revocationStatus]}
+                        {verification.revocationSource ? ` (${verification.revocationSource})` : ''}
+                      </p>
+                    </div>
                     {verification.signer && <p>Signer: {verification.signer}</p>}
                     {verification.issuer && <p>Issuer: {verification.issuer}</p>}
                     {verification.serialNumber && <p>Serial: {verification.serialNumber}</p>}
@@ -216,8 +245,9 @@ export function SecurityModal({ onClose }: SecurityModalProps): React.JSX.Elemen
                       <p className="break-words">Details: {verification.error}</p>
                     )}
                     <p className="mt-2">
-                      Integrity is checked against the embedded signature. Certificate trust and
-                      revocation are not evaluated.
+                      Integrity is checked against the signed byte range. Platform trust uses the
+                      operating system trust store where supported. Revocation uses OCSP first and
+                      CRL fallback when the certificate publishes an endpoint.
                     </p>
                   </div>
                 )}

@@ -12,6 +12,9 @@ import { extractSignature } from '@signpdf/utils'
 
 const execFileAsync = promisify(execFile)
 
+type TrustStatus = 'trusted' | 'untrusted' | 'expired' | 'unknown'
+type RevocationStatus = 'good' | 'revoked' | 'offline' | 'unknown' | 'not-available'
+
 export interface SignPdfOptions {
   p12Data: Uint8Array
   passphrase: string
@@ -39,6 +42,10 @@ export interface PdfSignatureVerification {
   validFrom: string | null
   validTo: string | null
   fingerprint: string | null
+  trustStatus: TrustStatus
+  trustSource: string | null
+  revocationStatus: RevocationStatus
+  revocationSource: string | null
   error: string | null
 }
 
@@ -108,30 +115,220 @@ export const hasPdfSignature = (pdfData: Uint8Array): boolean => {
 }
 
 const parseCertificateValue = (output: string, key: string): string | null => {
-  const line = output.split(/\r?\n/).find((value) => value.startsWith(`${key}=`))
-  return line ? line.slice(key.length + 1).trim() || null : null
+  const match = output.split(/\r?\n/).find((value) => new RegExp(`^${key}\\s*=`, 'i').test(value))
+  if (!match) return null
+  return match.replace(new RegExp(`^${key}\\s*=`, 'i'), '').trim() || null
+}
+
+const emptyVerification = (
+  present: boolean,
+  error: string | null = null
+): PdfSignatureVerification => ({
+  present,
+  valid: false,
+  signer: null,
+  issuer: null,
+  serialNumber: null,
+  validFrom: null,
+  validTo: null,
+  fingerprint: null,
+  trustStatus: 'unknown',
+  trustSource: null,
+  revocationStatus: 'unknown',
+  revocationSource: null,
+  error
+})
+
+const isCertificateExpired = (validFrom: string | null, validTo: string | null): boolean => {
+  const now = Date.now()
+  const start = validFrom ? Date.parse(validFrom) : Number.NaN
+  const end = validTo ? Date.parse(validTo) : Number.NaN
+  return (!Number.isNaN(start) && now < start) || (!Number.isNaN(end) && now > end)
+}
+
+const trustCertificate = async (
+  certificatePath: string,
+  chainPath: string
+): Promise<{ status: TrustStatus; source: string; error: string | null }> => {
+  try {
+    if (process.platform === 'win32') {
+      await execFileAsync('certutil', ['-verify', '-urlfetch', certificatePath])
+      return { status: 'trusted', source: 'Windows certificate trust store', error: null }
+    }
+    if (process.platform === 'darwin') {
+      await execFileAsync('security', ['verify-cert', '-p', 'basic', '-c', certificatePath])
+      return { status: 'trusted', source: 'macOS Keychain trust store', error: null }
+    }
+    await execFileAsync('openssl', [
+      'verify',
+      '-CApath',
+      '/etc/ssl/certs',
+      '-purpose',
+      'any',
+      '-untrusted',
+      chainPath,
+      certificatePath
+    ])
+    return { status: 'trusted', source: 'Linux OpenSSL system trust store', error: null }
+  } catch (error) {
+    const message =
+      error instanceof Error ? error.message : 'Certificate is not trusted by the platform.'
+    const expired = /expired|not yet valid|certificate has expired/i.test(message)
+    return {
+      status: expired ? 'expired' : 'untrusted',
+      source:
+        process.platform === 'win32'
+          ? 'Windows certificate trust store'
+          : process.platform === 'darwin'
+            ? 'macOS Keychain trust store'
+            : 'Linux OpenSSL system trust store',
+      error: message
+    }
+  }
+}
+
+const extractUrls = (text: string): string[] =>
+  [...text.matchAll(/URI:([^\s,]+)/gi)]
+    .map((match) => match[1])
+    .filter((value) => /^https?:\/\//i.test(value))
+
+const checkRevocation = async (
+  certificatePath: string,
+  issuerPath: string | null,
+  chainPath: string,
+  temporaryDirectory: string
+): Promise<{ status: RevocationStatus; source: string | null; error: string | null }> => {
+  let extensionOutput = ''
+  try {
+    const result = await execFileAsync('openssl', [
+      'x509',
+      '-in',
+      certificatePath,
+      '-noout',
+      '-ocsp_uri',
+      '-text'
+    ])
+    extensionOutput = result.stdout
+  } catch (error) {
+    return {
+      status: 'unknown',
+      source: null,
+      error: error instanceof Error ? error.message : 'Unable to read revocation endpoints.'
+    }
+  }
+
+  const ocspUri =
+    extensionOutput
+      .split(/\r?\n/)
+      .map((line) => line.trim())
+      .find((line) => /^https?:\/\//i.test(line)) || null
+  if (ocspUri && issuerPath) {
+    try {
+      const result = await execFileAsync('openssl', [
+        'ocsp',
+        '-issuer',
+        issuerPath,
+        '-cert',
+        certificatePath,
+        '-url',
+        ocspUri,
+        '-CAfile',
+        chainPath,
+        '-no_nonce'
+      ])
+      const output = result.stdout.toLowerCase()
+      if (output.includes('revoked'))
+        return { status: 'revoked', source: `OCSP: ${ocspUri}`, error: null }
+      if (output.includes('good'))
+        return { status: 'good', source: `OCSP: ${ocspUri}`, error: null }
+      return {
+        status: 'unknown',
+        source: `OCSP: ${ocspUri}`,
+        error: 'OCSP returned an indeterminate response.'
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'OCSP request failed.'
+      const offline =
+        /timed out|timeout|network|connect|fetch|unable to resolve|temporary failure|connection refused/i.test(
+          message
+        )
+      return { status: offline ? 'offline' : 'unknown', source: `OCSP: ${ocspUri}`, error: message }
+    }
+  }
+
+  const crlUri = extractUrls(extensionOutput).find((url) => !url.includes(ocspUri || '__no_ocsp__'))
+  if (crlUri) {
+    const crlPath = join(temporaryDirectory, 'revocation.crl')
+    try {
+      const response = await fetch(crlUri)
+      if (!response.ok) throw new Error(`CRL endpoint returned HTTP ${response.status}.`)
+      await writeFile(crlPath, Buffer.from(await response.arrayBuffer()))
+      const crlPemPath = join(temporaryDirectory, 'revocation.pem')
+      try {
+        await execFileAsync('openssl', [
+          'crl',
+          '-inform',
+          'DER',
+          '-in',
+          crlPath,
+          '-out',
+          crlPemPath
+        ])
+      } catch {
+        await execFileAsync('openssl', [
+          'crl',
+          '-inform',
+          'PEM',
+          '-in',
+          crlPath,
+          '-out',
+          crlPemPath
+        ])
+      }
+      if (!issuerPath)
+        return {
+          status: 'unknown',
+          source: `CRL: ${crlUri}`,
+          error: 'Issuer certificate is unavailable for CRL verification.'
+        }
+      await execFileAsync('openssl', [
+        'verify',
+        '-crl_check',
+        '-CAfile',
+        issuerPath,
+        '-CRLfile',
+        crlPemPath,
+        certificatePath
+      ])
+      return { status: 'good', source: `CRL: ${crlUri}`, error: null }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'CRL request failed.'
+      const revoked = /certificate revoked|revoked/i.test(message)
+      const offline =
+        /timed out|timeout|network|connect|fetch|unable to resolve|temporary failure|connection refused/i.test(
+          message
+        )
+      return {
+        status: revoked ? 'revoked' : offline ? 'offline' : 'unknown',
+        source: `CRL: ${crlUri}`,
+        error: message
+      }
+    }
+  }
+
+  return { status: 'not-available', source: null, error: null }
 }
 
 export const verifyPdfSignature = async (
   pdfData: Uint8Array
 ): Promise<PdfSignatureVerification> => {
-  if (!hasPdfSignature(pdfData)) {
-    return {
-      present: false,
-      valid: false,
-      signer: null,
-      issuer: null,
-      serialNumber: null,
-      validFrom: null,
-      validTo: null,
-      fingerprint: null,
-      error: null
-    }
-  }
+  if (!hasPdfSignature(pdfData)) return emptyVerification(false)
   const temporaryDirectory = await mkdtemp(join(tmpdir(), 'sanket-pdf-verify-'))
   const signaturePath = join(temporaryDirectory, 'signature.der')
   const contentPath = join(temporaryDirectory, 'signed-content.bin')
-  const certificatePath = join(temporaryDirectory, 'certificate.pem')
+  const certificateBundlePath = join(temporaryDirectory, 'certificates.pem')
+  const signerCertificatePath = join(temporaryDirectory, 'signer.pem')
+  const issuerCertificatePath = join(temporaryDirectory, 'issuer.pem')
   try {
     const extracted = extractSignature(Buffer.from(pdfData))
     await writeFile(signaturePath, Buffer.from(extracted.signature, 'binary'))
@@ -161,39 +358,61 @@ export const verifyPdfSignature = async (
           : 'Signature integrity verification failed.'
     }
 
-    let certificateOutput = ''
-    try {
-      await execFileAsync('openssl', [
-        'pkcs7',
-        '-inform',
-        'DER',
-        '-in',
-        signaturePath,
-        '-print_certs',
-        '-out',
-        certificatePath
-      ])
-      const certificate = await execFileAsync('openssl', [
-        'x509',
-        '-in',
-        certificatePath,
-        '-noout',
-        '-subject',
-        '-issuer',
-        '-serial',
-        '-startdate',
-        '-enddate',
-        '-fingerprint',
-        '-sha256'
-      ])
-      certificateOutput = certificate.stdout
-    } catch (certificateError) {
-      error =
-        error ||
-        (certificateError instanceof Error
-          ? certificateError.message
-          : 'Signer certificate metadata could not be read.')
-    }
+    await execFileAsync('openssl', [
+      'pkcs7',
+      '-inform',
+      'DER',
+      '-in',
+      signaturePath,
+      '-print_certs',
+      '-out',
+      certificateBundlePath
+    ])
+    const certificateBundle = await readFile(certificateBundlePath, 'utf8')
+    const certificates =
+      certificateBundle.match(/-----BEGIN CERTIFICATE-----[\s\S]+?-----END CERTIFICATE-----/g) || []
+    if (certificates.length === 0)
+      throw new Error('No signer certificate was embedded in the signature.')
+    await writeFile(signerCertificatePath, `${certificates[0]}\n`)
+    const issuerPath = certificates[1] ? issuerCertificatePath : null
+    if (issuerPath) await writeFile(issuerPath, `${certificates.slice(1).join('\n')}\n`)
+    const chainPath = join(temporaryDirectory, 'chain.pem')
+    await writeFile(chainPath, `${certificates.join('\n')}\n`)
+
+    const certificate = await execFileAsync('openssl', [
+      'x509',
+      '-in',
+      signerCertificatePath,
+      '-noout',
+      '-subject',
+      '-issuer',
+      '-serial',
+      '-startdate',
+      '-enddate',
+      '-fingerprint',
+      '-sha256'
+    ])
+    const certificateOutput = certificate.stdout
+    const validFrom = parseCertificateValue(certificateOutput, 'notBefore')
+    const validTo = parseCertificateValue(certificateOutput, 'notAfter')
+    const trust = isCertificateExpired(validFrom, validTo)
+      ? {
+          status: 'expired' as TrustStatus,
+          source:
+            process.platform === 'win32'
+              ? 'Windows certificate trust store'
+              : process.platform === 'darwin'
+                ? 'macOS Keychain trust store'
+                : 'Linux OpenSSL system trust store',
+          error: 'The signer certificate is outside its validity period.'
+        }
+      : await trustCertificate(signerCertificatePath, chainPath)
+    const revocation = await checkRevocation(
+      signerCertificatePath,
+      issuerPath,
+      chainPath,
+      temporaryDirectory
+    )
 
     return {
       present: true,
@@ -201,25 +420,24 @@ export const verifyPdfSignature = async (
       signer: parseCertificateValue(certificateOutput, 'subject'),
       issuer: parseCertificateValue(certificateOutput, 'issuer'),
       serialNumber: parseCertificateValue(certificateOutput, 'serial'),
-      validFrom: parseCertificateValue(certificateOutput, 'notBefore'),
-      validTo: parseCertificateValue(certificateOutput, 'notAfter'),
+      validFrom,
+      validTo,
       fingerprint: parseCertificateValue(certificateOutput, 'sha256 Fingerprint'),
-      error
+      trustStatus: trust.status,
+      trustSource: trust.source,
+      revocationStatus: revocation.status,
+      revocationSource: revocation.source,
+      error: [error, trust.error, revocation.error].filter(Boolean).join(' ') || null
     }
   } catch (verificationError) {
     return {
-      present: true,
-      valid: false,
-      signer: null,
-      issuer: null,
-      serialNumber: null,
-      validFrom: null,
-      validTo: null,
-      fingerprint: null,
-      error:
+      ...emptyVerification(
+        true,
         verificationError instanceof Error
           ? verificationError.message
           : 'Unable to parse the PDF signature.'
+      ),
+      valid: false
     }
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true })

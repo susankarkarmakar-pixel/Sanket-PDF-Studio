@@ -22,6 +22,9 @@ export interface SignPdfOptions {
   contactInfo: string
 }
 
+export type TrustStatus = 'trusted' | 'untrusted' | 'expired' | 'unknown'
+export type RevocationStatus = 'good' | 'revoked' | 'offline' | 'unknown' | 'not-available'
+
 export interface PdfSignatureVerification {
   present: boolean
   valid: boolean
@@ -31,6 +34,10 @@ export interface PdfSignatureVerification {
   validFrom: string | null
   validTo: string | null
   fingerprint: string | null
+  trustStatus: TrustStatus
+  trustSource: string | null
+  revocationStatus: RevocationStatus
+  revocationSource: string | null
   error: string | null
 }
 
