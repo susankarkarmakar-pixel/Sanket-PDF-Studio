@@ -5,82 +5,89 @@ on:
     tags:
       - 'v*'
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  CSC_IDENTITY_AUTO_DISCOVERY: false
+
 jobs:
-  build-windows:
+  build-windows-portable:
+    name: Build Windows portable EXE
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
-      - name: Checkout Code
+      - name: Checkout source
         uses: actions/checkout@v4
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
+          cache: npm
 
-      - name: Install Dependencies
+      - name: Install dependencies
         run: npm ci
 
-      - name: Build Windows
-        run: npm run build:win -- --publish never
+      - name: Build Windows portable EXE
+        run: npm run build:win:portable -- --publish never --config.compression=store
 
       - name: Verify packaged signing dependencies
         run: npm run test:packaged-deps -- dist/win-unpacked/resources/app.asar
 
-      - name: Upload Windows Artifact
+      - name: Verify bundled runtime resources
+        shell: pwsh
+        run: |
+          $required = @(
+            'dist/win-unpacked/resources/qpdf/bin/qpdf.exe',
+            'dist/win-unpacked/resources/tessdata/eng.traineddata.gz',
+            'dist/win-unpacked/resources/tessdata/chi_sim.traineddata.gz',
+            'dist/win-unpacked/resources/tesseract/worker.min.js',
+            'dist/win-unpacked/resources/tesseract/core/tesseract-core-lstm.wasm'
+          )
+          $missing = $required | Where-Object { -not (Test-Path $_) }
+          if ($missing) {
+            throw "Missing packaged runtime resources: $($missing -join ', ')"
+          }
+
+      - name: Generate SHA-256 checksum
+        shell: pwsh
+        run: |
+          $artifact = Get-ChildItem -Path 'dist' -Filter '*.exe' | Select-Object -First 1
+          if (-not $artifact) { throw 'Windows portable EXE was not produced.' }
+          $hash = (Get-FileHash $artifact.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$hash  $($artifact.Name)" | Set-Content -Path 'dist/SHA256SUMS.txt'
+
+      - name: Upload Windows portable artifact
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
-          path: dist/*.exe
-
-  build-linux:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - name: Install Dependencies
-        run: npm ci
-
-      - name: Build Linux
-        run: npm run build:linux -- --publish never
-
-      - name: Upload Linux Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-installer
+          name: windows-portable
           path: |
-            dist/*.AppImage
-            dist/*.deb
+            dist/*.exe
+            dist/SHA256SUMS.txt
+          if-no-files-found: error
 
-  release:
-    needs: [build-windows, build-linux]
+  publish-release:
+    name: Publish GitHub Release
+    needs: build-windows-portable
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-
-      - name: Download Windows Artifact
+      - name: Download Windows artifact
         uses: actions/download-artifact@v4
         with:
-          name: windows-installer
+          name: windows-portable
           path: release-assets
 
-      - name: Download Linux Artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: linux-installer
-          path: release-assets
-
-      - name: Publish Release
+      - name: Publish release assets
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
+          name: Sanket PDF Studio ${{ github.ref_name }}
+          generate_release_notes: true
           files: release-assets/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

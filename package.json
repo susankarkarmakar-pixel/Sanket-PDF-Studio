@@ -27,6 +27,7 @@
     "test:ocr:offline": "npm run prepare:ocr && node scripts/ocr-offline-smoke-test.mjs",
     "build:unpack": "npm run build && electron-builder --dir",
     "build:win": "npm run prepare:ocr && npm run prepare:qpdf -- --platform win32 && npm run build && electron-builder --win",
+    "build:win:portable": "npm run prepare:ocr && npm run prepare:qpdf -- --platform win32 && npm run build && electron-builder --win portable",
     "build:mac": "echo \"macOS build disabled\"",
     "build:linux": "npm run prepare:ocr && npm run prepare:qpdf -- --platform linux && npm run build && electron-builder --linux"
   },
