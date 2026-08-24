@@ -7,7 +7,8 @@ import type {
   SanketApi,
   SettingValue,
   SignPdfOptions,
-  RuntimeCapabilities
+  RuntimeCapabilities,
+  OcrRuntimePaths
 } from './index.d'
 
 const toFileData = (res: FileData | null): FileData | null => {
@@ -39,6 +40,7 @@ const api: SanketApi = {
     ipcRenderer.invoke('batch:optimizePdf', data, options) as Promise<Uint8Array>,
   getRuntimeCapabilities: () =>
     ipcRenderer.invoke('runtime:getCapabilities') as Promise<RuntimeCapabilities>,
+  getOcrRuntimePaths: () => ipcRenderer.invoke('ocr:getRuntimePaths') as Promise<OcrRuntimePaths>,
   print: () => ipcRenderer.invoke('print:pdf') as Promise<boolean>,
   signPdf: (data: Uint8Array, options: SignPdfOptions) =>
     ipcRenderer.invoke('security:signPdf', data, options) as Promise<Uint8Array>,

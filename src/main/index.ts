@@ -1,8 +1,9 @@
-import { app, shell, BrowserWindow, ipcMain, dialog, globalShortcut } from 'electron'
+import { app, shell, BrowserWindow, ipcMain, dialog, globalShortcut, net, protocol } from 'electron'
 import { basename, extname, join, relative, resolve } from 'path'
+import { pathToFileURL } from 'url'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { optimizePdfDocument, type OptimizePdfOptions } from './batch'
-import { getRuntimeCapabilities } from './runtime'
+import { getOcrResourcePath, getOcrRuntimePaths, getRuntimeCapabilities } from './runtime'
 import fs from 'fs'
 import {
   encryptPdfDocument,
@@ -77,6 +78,19 @@ if (process.argv.length >= 2) {
     fileToOpenOnStartup = arg
   }
 }
+
+protocol.registerSchemesAsPrivileged([
+  {
+    scheme: 'sanket',
+    privileges: {
+      standard: true,
+      secure: true,
+      supportFetchAPI: true,
+      corsEnabled: true,
+      stream: true
+    }
+  }
+])
 
 app.on('open-file', (event, path) => {
   event.preventDefault()
@@ -241,7 +255,18 @@ app.whenReady().then(() => {
 
   ipcMain.handle('security:hasSignature', async (_, data: Uint8Array) => hasPdfSignature(data))
 
+  protocol.handle('sanket', async (request) => {
+    const url = new URL(request.url)
+    const kind =
+      url.hostname === 'ocr-data' ? 'data' : url.hostname === 'ocr-runtime' ? 'runtime' : null
+    const relativePath = decodeURIComponent(url.pathname).replace(/^\/+/, '')
+    const resourcePath = kind ? getOcrResourcePath(kind, relativePath) : null
+    if (!resourcePath) return new Response('Not found', { status: 404 })
+    return net.fetch(pathToFileURL(resourcePath).toString())
+  })
+
   ipcMain.handle('runtime:getCapabilities', async () => getRuntimeCapabilities())
+  ipcMain.handle('ocr:getRuntimePaths', async () => getOcrRuntimePaths())
 
   ipcMain.handle(
     'batch:optimizePdf',

@@ -6,3 +6,5 @@ out
 *.log*
 benchmark-results
 resources/qpdf/
+resources/tessdata/
+resources/tesseract/

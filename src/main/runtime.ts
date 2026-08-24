@@ -1,5 +1,5 @@
 import { access } from 'fs/promises'
-import { constants } from 'fs'
+import { constants, existsSync } from 'fs'
 import { dirname, join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
@@ -19,6 +19,14 @@ export interface RuntimeToolStatus {
 export interface RuntimeCapabilities {
   qpdf: RuntimeToolStatus
   openssl: RuntimeToolStatus
+  ocr: RuntimeToolStatus
+}
+
+export interface OcrRuntimePaths {
+  workerPath: string
+  corePath: string
+  langPath: string
+  languageCodes: string[]
 }
 
 export interface QpdfInvocation {
@@ -97,9 +105,75 @@ const probeTool = async (
   }
 }
 
+const ocrLanguageCodes = ['eng', 'ben', 'hin', 'spa', 'fra', 'deu', 'jpn', 'chi_sim']
+
+const getResourceDirectories = (name: string): string[] => [
+  join(resourcesPath, name),
+  join(process.cwd(), 'resources', name)
+]
+
+export const getOcrResourcePath = (
+  kind: 'runtime' | 'data',
+  relativePath: string
+): string | null => {
+  if (relativePath.includes('..') || relativePath.includes('\0') || relativePath.startsWith('/'))
+    return null
+  const roots = getResourceDirectories(kind === 'runtime' ? 'tesseract' : 'tessdata')
+  for (const root of roots) {
+    const candidate = join(root, relativePath)
+    if (
+      (candidate.startsWith(`${root}/`) || candidate.startsWith(`${root}\\`)) &&
+      existsSync(candidate)
+    ) {
+      return candidate
+    }
+  }
+  return null
+}
+
+export const getOcrRuntimePaths = async (): Promise<OcrRuntimePaths> => {
+  const requiredFiles = [
+    ...ocrLanguageCodes.map((code) => ({ kind: 'data' as const, path: `${code}.traineddata.gz` })),
+    { kind: 'runtime' as const, path: 'worker.min.js' },
+    { kind: 'runtime' as const, path: 'core/tesseract-core-lstm.wasm.js' },
+    { kind: 'runtime' as const, path: 'core/tesseract-core-lstm.wasm' }
+  ]
+  for (const required of requiredFiles) {
+    const candidate = getOcrResourcePath(required.kind, required.path)
+    if (!candidate || !(await isExecutableFile(candidate))) {
+      throw new Error(`Offline OCR runtime is incomplete: ${required.path}`)
+    }
+  }
+  return {
+    workerPath: 'sanket://ocr-runtime/worker.min.js',
+    corePath: 'sanket://ocr-runtime/core',
+    langPath: 'sanket://ocr-data',
+    languageCodes: [...ocrLanguageCodes]
+  }
+}
+
 export const getRuntimeCapabilities = async (): Promise<RuntimeCapabilities> => {
   const qpdf = await getQpdfInvocation()
   const qpdfStatus = await probeTool(qpdf.path, qpdf.source, qpdf.env)
   const opensslStatus = await probeTool('openssl', 'system')
-  return { qpdf: qpdfStatus, openssl: opensslStatus }
+  let ocrStatus: RuntimeToolStatus
+  try {
+    await getOcrRuntimePaths()
+    ocrStatus = {
+      available: true,
+      source: 'bundled',
+      path: 'sanket://ocr-runtime',
+      version: 'Tesseract.js worker/core with 8 local language packs',
+      error: null
+    }
+  } catch (error) {
+    ocrStatus = {
+      available: false,
+      source: 'unavailable',
+      path: null,
+      version: null,
+      error: error instanceof Error ? error.message : 'Offline OCR resources are unavailable.'
+    }
+  }
+  return { qpdf: qpdfStatus, openssl: opensslStatus, ocr: ocrStatus }
 }

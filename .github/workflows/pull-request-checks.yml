@@ -38,6 +38,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Prepare and verify offline OCR resources
+        run: npm run test:ocr:offline
+
       - name: Run typecheck
         run: npm run typecheck
 

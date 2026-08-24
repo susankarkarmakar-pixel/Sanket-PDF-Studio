@@ -1,6 +1,6 @@
 {
   "name": "sanket-pdf-studio",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "description": "Offline-first PDF viewer and editor for annotating, organizing, and exporting documents.",
   "author": "Susankar Karmakar",
   "main": "./out/main/index.js",
@@ -22,10 +22,12 @@
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
     "prepare:qpdf": "node scripts/prepare-qpdf.mjs",
+    "prepare:ocr": "node scripts/prepare-ocr.mjs",
+    "test:ocr:offline": "npm run prepare:ocr && node scripts/ocr-offline-smoke-test.mjs",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run prepare:qpdf -- --platform win32 && npm run build && electron-builder --win",
+    "build:win": "npm run prepare:ocr && npm run prepare:qpdf -- --platform win32 && npm run build && electron-builder --win",
     "build:mac": "echo \"macOS build disabled\"",
-    "build:linux": "npm run prepare:qpdf -- --platform linux && npm run build && electron-builder --linux"
+    "build:linux": "npm run prepare:ocr && npm run prepare:qpdf -- --platform linux && npm run build && electron-builder --linux"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",
@@ -49,6 +51,14 @@
     "@electron-toolkit/eslint-config-prettier": "^3.0.0",
     "@electron-toolkit/eslint-config-ts": "^3.1.0",
     "@electron-toolkit/tsconfig": "^2.0.0",
+    "@tesseract.js-data/ben": "^1.0.0",
+    "@tesseract.js-data/chi_sim": "^1.0.0",
+    "@tesseract.js-data/deu": "^1.0.0",
+    "@tesseract.js-data/eng": "^1.0.0",
+    "@tesseract.js-data/fra": "^1.0.0",
+    "@tesseract.js-data/hin": "^1.0.0",
+    "@tesseract.js-data/jpn": "^1.0.0",
+    "@tesseract.js-data/spa": "^1.0.0",
     "@types/node": "^22.19.1",
     "@types/pdfjs-dist": "^2.10.377",
     "@types/react": "^19.2.7",

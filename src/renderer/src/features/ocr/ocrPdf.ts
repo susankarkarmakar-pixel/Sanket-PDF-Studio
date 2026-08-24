@@ -65,7 +65,14 @@ export const ocrPdf = async (
   const loadingTask = pdfjsLib.getDocument({ data: pdfData.slice() })
   const pdfjsDocument = await loadingTask.promise
   const totalPages = pdfjsDocument.numPages
+  const ocrRuntime = await window.api.getOcrRuntimePaths()
   const worker = await createWorker(languagesToUse, undefined, {
+    workerPath: ocrRuntime.workerPath,
+    corePath: ocrRuntime.corePath,
+    langPath: ocrRuntime.langPath,
+    cacheMethod: 'none',
+    gzip: true,
+    workerBlobURL: false,
     logger: (message: LoggerMessage) => {
       const page = Number(message.userJobId || 1)
       onProgress?.({

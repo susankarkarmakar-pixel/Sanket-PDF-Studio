@@ -71,6 +71,14 @@ export interface RuntimeToolStatus {
 export interface RuntimeCapabilities {
   qpdf: RuntimeToolStatus
   openssl: RuntimeToolStatus
+  ocr: RuntimeToolStatus
+}
+
+export interface OcrRuntimePaths {
+  workerPath: string
+  corePath: string
+  langPath: string
+  languageCodes: string[]
 }
 
 export interface SanketApi {
@@ -87,6 +95,7 @@ export interface SanketApi {
   ) => Promise<string | null>
   optimizePdf: (data: Uint8Array, options?: Partial<OptimizePdfOptions>) => Promise<Uint8Array>
   getRuntimeCapabilities: () => Promise<RuntimeCapabilities>
+  getOcrRuntimePaths: () => Promise<OcrRuntimePaths>
   print: () => Promise<boolean>
   signPdf: (data: Uint8Array, options: SignPdfOptions) => Promise<Uint8Array>
   encryptPdf: (data: Uint8Array, options: EncryptPdfOptions) => Promise<Uint8Array>

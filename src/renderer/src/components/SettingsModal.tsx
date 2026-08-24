@@ -150,11 +150,12 @@ export function SettingsModal({ onClose }: SettingsModalProps): React.JSX.Elemen
             </div>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
               qpdf is required for encryption and PDF optimization. OpenSSL is used by signature
-              verification.
+              verification. OCR uses the bundled worker, core, and language packs.
             </p>
             <div className="mt-3 space-y-2">
               {renderToolStatus('qpdf', capabilities?.qpdf)}
               {renderToolStatus('OpenSSL', capabilities?.openssl)}
+              {renderToolStatus('Offline OCR', capabilities?.ocr)}
             </div>
           </section>
 

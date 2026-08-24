@@ -18,6 +18,14 @@ extraResources:
     to: qpdf
     filter:
       - '**/*'
+  - from: resources/tessdata
+    to: tessdata
+    filter:
+      - '**/*'
+  - from: resources/tesseract
+    to: tesseract
+    filter:
+      - '**/*'
 asarUnpack:
   - resources/**
 win:
