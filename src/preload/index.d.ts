@@ -41,6 +41,13 @@ export interface PdfSignatureVerification {
   error: string | null
 }
 
+export interface OptimizePdfOptions {
+  linearize: boolean
+  generateObjectStreams: boolean
+  recompressStreams: boolean
+  compressionLevel: number
+}
+
 export interface EncryptPdfOptions {
   userPassword: string
   ownerPassword?: string
@@ -54,8 +61,15 @@ export interface SanketApi {
   openFile: () => Promise<FileData | null>
   openFiles: () => Promise<FileData[]>
   openImages: () => Promise<FileData[]>
+  selectOutputDirectory: () => Promise<string | null>
   readFile: (filePath: string) => Promise<FileData | null>
   saveFile: (data: Uint8Array, defaultPath?: string) => Promise<string | null>
+  writeOutputFile: (
+    data: Uint8Array,
+    outputDirectory: string,
+    fileName: string
+  ) => Promise<string | null>
+  optimizePdf: (data: Uint8Array, options?: Partial<OptimizePdfOptions>) => Promise<Uint8Array>
   print: () => Promise<boolean>
   signPdf: (data: Uint8Array, options: SignPdfOptions) => Promise<Uint8Array>
   encryptPdf: (data: Uint8Array, options: EncryptPdfOptions) => Promise<Uint8Array>

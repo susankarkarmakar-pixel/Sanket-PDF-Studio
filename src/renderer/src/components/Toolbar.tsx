@@ -17,7 +17,8 @@ import {
   Redo2,
   ScanText,
   ShieldCheck,
-  WandSparkles
+  WandSparkles,
+  Files
 } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { AnnotationToolbar } from '../features/annotate/AnnotationToolbar'
@@ -34,6 +35,7 @@ import { DocumentToolsModal } from '../features/import-export/DocumentToolsModal
 import { OcrModal } from '../features/ocr/OcrModal'
 import { CompareModal } from '../features/comparison/CompareModal'
 import { SecurityModal } from '../features/security/SecurityModal'
+import { BatchProcessingModal } from '../features/batch/BatchProcessingModal'
 
 export function Toolbar(): React.JSX.Element {
   const {
@@ -75,6 +77,7 @@ export function Toolbar(): React.JSX.Element {
   const [showOcr, setShowOcr] = useState(false)
   const [showCompare, setShowCompare] = useState(false)
   const [showSecurity, setShowSecurity] = useState(false)
+  const [showBatchProcessing, setShowBatchProcessing] = useState(false)
 
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent): void => {
@@ -337,6 +340,14 @@ export function Toolbar(): React.JSX.Element {
         </div>
 
         <button
+          onClick={() => setShowBatchProcessing(true)}
+          className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+          title="Batch conversion and optimization"
+          aria-label="Open batch conversion and optimization"
+        >
+          <Files size={20} />
+        </button>
+        <button
           onClick={() => setShowSecurity(true)}
           disabled={!pdfData}
           className="p-2 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors disabled:opacity-40"
@@ -394,6 +405,9 @@ export function Toolbar(): React.JSX.Element {
         {showOcr && <OcrModal onClose={() => setShowOcr(false)} />}
         {showCompare && <CompareModal onClose={() => setShowCompare(false)} />}
         {showSecurity && <SecurityModal onClose={() => setShowSecurity(false)} />}
+        {showBatchProcessing && (
+          <BatchProcessingModal onClose={() => setShowBatchProcessing(false)} />
+        )}
       </div>
     </header>
   )

@@ -24,10 +24,18 @@ const api: SanketApi = {
     const files = (await ipcRenderer.invoke('dialog:openImages')) as FileData[]
     return files.map((file) => ({ path: file.path, data: new Uint8Array(file.data) }))
   },
+  selectOutputDirectory: () =>
+    ipcRenderer.invoke('dialog:selectOutputDirectory') as Promise<string | null>,
   readFile: async (filePath: string) =>
     toFileData(await ipcRenderer.invoke('fs:readFile', filePath)),
   saveFile: (data: Uint8Array, defaultPath?: string) =>
     ipcRenderer.invoke('dialog:saveFile', data, defaultPath) as Promise<string | null>,
+  writeOutputFile: (data: Uint8Array, outputDirectory: string, fileName: string) =>
+    ipcRenderer.invoke('fs:writeOutputFile', data, outputDirectory, fileName) as Promise<
+      string | null
+    >,
+  optimizePdf: (data, options) =>
+    ipcRenderer.invoke('batch:optimizePdf', data, options) as Promise<Uint8Array>,
   print: () => ipcRenderer.invoke('print:pdf') as Promise<boolean>,
   signPdf: (data: Uint8Array, options: SignPdfOptions) =>
     ipcRenderer.invoke('security:signPdf', data, options) as Promise<Uint8Array>,

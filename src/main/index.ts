@@ -1,8 +1,8 @@
 import { app, shell, BrowserWindow, ipcMain, dialog, globalShortcut } from 'electron'
-import { join } from 'path'
+import { basename, extname, join, relative, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
+import { optimizePdfDocument, type OptimizePdfOptions } from './batch'
 import fs from 'fs'
-import { extname } from 'path'
 import {
   encryptPdfDocument,
   hasPdfSignature,
@@ -158,6 +158,13 @@ app.whenReady().then(() => {
     return filePaths.map(readImageFile).filter((file): file is FileData => file !== null)
   })
 
+  ipcMain.handle('dialog:selectOutputDirectory', async () => {
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      properties: ['openDirectory', 'createDirectory']
+    })
+    return canceled || filePaths.length === 0 ? null : filePaths[0]
+  })
+
   ipcMain.handle('dialog:openFiles', async () => {
     const { canceled, filePaths } = await dialog.showOpenDialog({
       properties: ['openFile', 'multiSelections'],
@@ -169,6 +176,31 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('fs:readFile', async (_, filePath: string) => readPdfFile(filePath))
+
+  ipcMain.handle(
+    'fs:writeOutputFile',
+    async (_, data: Uint8Array, outputDirectory: string, fileName: string) => {
+      try {
+        const directory = resolve(outputDirectory)
+        const safeName = basename(fileName).replace(/[^a-zA-Z0-9._-]/g, '_')
+        const outputPath = resolve(
+          directory,
+          safeName.toLowerCase().endsWith('.pdf') ? safeName : `${safeName}.pdf`
+        )
+        const pathDifference = relative(directory, outputPath)
+        if (pathDifference.startsWith('..') || resolve(directory, pathDifference) !== outputPath)
+          return null
+        if (!fs.existsSync(directory) || !fs.statSync(directory).isDirectory()) return null
+        const temporaryPath = `${outputPath}.tmp-${process.pid}-${Date.now()}`
+        fs.writeFileSync(temporaryPath, Buffer.from(data))
+        fs.renameSync(temporaryPath, outputPath)
+        return outputPath
+      } catch (error) {
+        console.error('Failed to write batch output:', error)
+        return null
+      }
+    }
+  )
 
   ipcMain.handle('dialog:saveFile', async (_, data: ArrayBuffer, defaultPath?: string) => {
     try {
@@ -207,6 +239,18 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('security:hasSignature', async (_, data: Uint8Array) => hasPdfSignature(data))
+
+  ipcMain.handle(
+    'batch:optimizePdf',
+    async (_, data: Uint8Array, options?: Partial<OptimizePdfOptions>) => {
+      try {
+        return await optimizePdfDocument(data, options)
+      } catch (error) {
+        console.error('Batch PDF optimization failed:', error)
+        throw new Error(error instanceof Error ? error.message : 'PDF optimization failed.')
+      }
+    }
+  )
 
   ipcMain.handle('security:verifySignature', async (_, data: Uint8Array) =>
     verifyPdfSignature(data)
