@@ -5,6 +5,7 @@ import { PDFDocument } from 'pdf-lib'
 import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib'
 import { SignPdf } from '@signpdf/signpdf'
 import { P12Signer } from '@signpdf/signer-p12'
+import { extractSignature } from '@signpdf/utils'
 
 const root = process.cwd()
 const temp = join(root, '.security-smoke')
@@ -63,6 +64,23 @@ const main = async () => {
   writeFileSync(join(temp, 'signed.pdf'), signed)
   if (!signed.toString('latin1').includes('/Type /Sig'))
     throw new Error('Signed PDF did not contain a signature dictionary')
+  const extracted = extractSignature(signed)
+  writeFileSync(join(temp, 'signature.der'), Buffer.from(extracted.signature, 'binary'))
+  writeFileSync(join(temp, 'signed-content.bin'), extracted.signedData)
+  execFileSync('openssl', [
+    'cms',
+    '-verify',
+    '-inform',
+    'DER',
+    '-in',
+    join(temp, 'signature.der'),
+    '-content',
+    join(temp, 'signed-content.bin'),
+    '-binary',
+    '-noverify',
+    '-out',
+    '/dev/null'
+  ])
 
   execFileSync('qpdf', [
     '--encrypt',

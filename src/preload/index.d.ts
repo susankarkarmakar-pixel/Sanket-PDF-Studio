@@ -22,6 +22,18 @@ export interface SignPdfOptions {
   contactInfo: string
 }
 
+export interface PdfSignatureVerification {
+  present: boolean
+  valid: boolean
+  signer: string | null
+  issuer: string | null
+  serialNumber: string | null
+  validFrom: string | null
+  validTo: string | null
+  fingerprint: string | null
+  error: string | null
+}
+
 export interface EncryptPdfOptions {
   userPassword: string
   ownerPassword?: string
@@ -41,6 +53,7 @@ export interface SanketApi {
   signPdf: (data: Uint8Array, options: SignPdfOptions) => Promise<Uint8Array>
   encryptPdf: (data: Uint8Array, options: EncryptPdfOptions) => Promise<Uint8Array>
   hasSignature: (data: Uint8Array) => Promise<boolean>
+  verifySignature: (data: Uint8Array) => Promise<PdfSignatureVerification>
   getSettings: () => Promise<Record<string, unknown>>
   setSetting: (key: string, value: SettingValue) => Promise<boolean>
   onOpenFileFromOS: (callback: (path: string) => void) => () => void

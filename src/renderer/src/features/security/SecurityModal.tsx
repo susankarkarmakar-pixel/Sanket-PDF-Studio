@@ -2,7 +2,11 @@ import { useEffect, useState } from 'react'
 import { LockKeyhole, PenLine, ShieldCheck, X } from 'lucide-react'
 import { useAppStore } from '../../store'
 import { useFeedbackStore } from '../../feedbackStore'
-import type { EncryptPdfOptions, SignPdfOptions } from '../../../../preload/index.d'
+import type {
+  EncryptPdfOptions,
+  PdfSignatureVerification,
+  SignPdfOptions
+} from '../../../../preload/index.d'
 
 interface SecurityModalProps {
   onClose: () => void
@@ -28,15 +32,40 @@ export function SecurityModal({ onClose }: SecurityModalProps): React.JSX.Elemen
   const [allowAnnotations, setAllowAnnotations] = useState(true)
   const [allowFormFilling, setAllowFormFilling] = useState(true)
   const [hasSignature, setHasSignature] = useState(false)
+  const [verification, setVerification] = useState<PdfSignatureVerification | null>(null)
+  const [isVerifying, setIsVerifying] = useState(false)
   const [isProcessing, setIsProcessing] = useState(false)
 
   useEffect(() => {
     if (!pdfData) return
+    setVerification(null)
     void window.api
       .hasSignature(pdfData)
       .then(setHasSignature)
       .catch(() => setHasSignature(false))
   }, [pdfData])
+
+  const handleVerify = async (): Promise<void> => {
+    if (!pdfData || isVerifying) return
+    setIsVerifying(true)
+    try {
+      setVerification(await window.api.verifySignature(pdfData))
+    } catch (error) {
+      setVerification({
+        present: true,
+        valid: false,
+        signer: null,
+        issuer: null,
+        serialNumber: null,
+        validFrom: null,
+        validTo: null,
+        fingerprint: null,
+        error: error instanceof Error ? error.message : 'Signature verification failed.'
+      })
+    } finally {
+      setIsVerifying(false)
+    }
+  }
 
   const handleCertificate = async (event: React.ChangeEvent<HTMLInputElement>): Promise<void> => {
     const file = event.target.files?.[0]
@@ -153,9 +182,46 @@ export function SecurityModal({ onClose }: SecurityModalProps): React.JSX.Elemen
               edit will invalidate the signature.
             </p>
             {hasSignature && (
-              <p className="rounded-lg bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950/30 dark:text-green-200">
-                This document contains a PDF signature field.
-              </p>
+              <div className="rounded-lg bg-green-50 p-3 text-sm text-green-800 dark:bg-green-950/30 dark:text-green-200">
+                <div className="flex items-center justify-between gap-3">
+                  <span>This document contains a PDF signature field.</span>
+                  <button
+                    type="button"
+                    onClick={() => void handleVerify()}
+                    disabled={isVerifying}
+                    className="rounded bg-green-700 px-3 py-1 text-white disabled:opacity-50"
+                  >
+                    {isVerifying ? 'Verifying...' : 'Verify signature'}
+                  </button>
+                </div>
+                {verification && (
+                  <div
+                    className="mt-3 space-y-1 border-t border-green-200 pt-3 text-xs dark:border-green-800"
+                    aria-live="polite"
+                  >
+                    <p className="font-semibold">
+                      {verification.valid
+                        ? 'Signature integrity valid'
+                        : 'Signature integrity could not be verified'}
+                    </p>
+                    {verification.signer && <p>Signer: {verification.signer}</p>}
+                    {verification.issuer && <p>Issuer: {verification.issuer}</p>}
+                    {verification.serialNumber && <p>Serial: {verification.serialNumber}</p>}
+                    {verification.validFrom && <p>Valid from: {verification.validFrom}</p>}
+                    {verification.validTo && <p>Valid to: {verification.validTo}</p>}
+                    {verification.fingerprint && (
+                      <p className="break-all">SHA-256: {verification.fingerprint}</p>
+                    )}
+                    {verification.error && (
+                      <p className="break-words">Details: {verification.error}</p>
+                    )}
+                    <p className="mt-2">
+                      Integrity is checked against the embedded signature. Certificate trust and
+                      revocation are not evaluated.
+                    </p>
+                  </div>
+                )}
+              </div>
             )}
             <label className="block text-sm font-medium">
               Certificate file

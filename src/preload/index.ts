@@ -3,6 +3,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import type {
   EncryptPdfOptions,
   FileData,
+  PdfSignatureVerification,
   SanketApi,
   SettingValue,
   SignPdfOptions
@@ -34,6 +35,8 @@ const api: SanketApi = {
     ipcRenderer.invoke('security:encryptPdf', data, options) as Promise<Uint8Array>,
   hasSignature: (data: Uint8Array) =>
     ipcRenderer.invoke('security:hasSignature', data) as Promise<boolean>,
+  verifySignature: (data: Uint8Array) =>
+    ipcRenderer.invoke('security:verifySignature', data) as Promise<PdfSignatureVerification>,
   getSettings: () => ipcRenderer.invoke('settings:get') as Promise<Record<string, unknown>>,
   setSetting: (key: string, value: SettingValue) =>
     ipcRenderer.invoke('settings:set', key, value) as Promise<boolean>,

@@ -7,6 +7,7 @@ import {
   encryptPdfDocument,
   hasPdfSignature,
   signPdfDocument,
+  verifyPdfSignature,
   type EncryptPdfOptions,
   type SignPdfOptions
 } from './security'
@@ -206,6 +207,10 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('security:hasSignature', async (_, data: Uint8Array) => hasPdfSignature(data))
+
+  ipcMain.handle('security:verifySignature', async (_, data: Uint8Array) =>
+    verifyPdfSignature(data)
+  )
 
   ipcMain.handle('print:pdf', async (event) => {
     try {
