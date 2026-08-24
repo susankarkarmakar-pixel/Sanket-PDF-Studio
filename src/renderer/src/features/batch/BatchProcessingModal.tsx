@@ -6,9 +6,11 @@ import {
   fileSizeLabel,
   optimizePdf,
   outputNameFor,
+  parseTargetSize,
   type BatchItem,
   type BatchMode,
-  type BatchOptimizeOptions
+  type BatchOptimizeOptions,
+  type TargetSizeUnit
 } from './batchProcessing'
 
 interface BatchProcessingModalProps {
@@ -19,7 +21,8 @@ const initialOptions: BatchOptimizeOptions = {
   linearize: false,
   generateObjectStreams: true,
   recompressStreams: true,
-  compressionLevel: 6
+  compressionLevel: 6,
+  targetSizeBytes: null
 }
 
 const displayName = (path: string): string => path.split(/[\\/]/).pop() || path
@@ -30,6 +33,8 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
   const [items, setItems] = useState<BatchItem[]>([])
   const [outputDirectory, setOutputDirectory] = useState<string | null>(null)
   const [options, setOptions] = useState<BatchOptimizeOptions>(initialOptions)
+  const [targetValue, setTargetValue] = useState('')
+  const [targetUnit, setTargetUnit] = useState<TargetSizeUnit>('MB')
   const [isProcessing, setIsProcessing] = useState(false)
   const cancelRequested = useRef(false)
 
@@ -52,6 +57,7 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
           outputPath: null,
           originalBytes: input.data.byteLength,
           outputBytes: null,
+          targetReached: null,
           error: null
         }))
       return [...current, ...additions]
@@ -71,9 +77,22 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
       return
     }
 
+    let targetBytes: number | null = null
+    if (mode === 'optimize-pdfs') {
+      try {
+        targetBytes = parseTargetSize(targetValue, targetUnit)
+      } catch (error) {
+        notify(error instanceof Error ? error.message : 'Enter a valid target size.', 'error')
+        return
+      }
+    }
+
+    const runOptions = { ...options, targetSizeBytes: targetBytes }
     cancelRequested.current = false
     setIsProcessing(true)
-    setItems((current) => current.map((item) => ({ ...item, status: 'queued', error: null })))
+    setItems((current) =>
+      current.map((item) => ({ ...item, status: 'queued', error: null, targetReached: null }))
+    )
     let completed = 0
     let failed = 0
 
@@ -88,7 +107,7 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
         const output =
           mode === 'convert-images'
             ? await convertImageToPdf(item.input)
-            : await optimizePdf(item.input, options)
+            : await optimizePdf(item.input, runOptions)
         if (cancelRequested.current) {
           updateItem(item.id, { status: 'cancelled' })
           continue
@@ -102,7 +121,8 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
         updateItem(item.id, {
           status: 'completed',
           outputPath: savedPath,
-          outputBytes: output.byteLength
+          outputBytes: output.byteLength,
+          targetReached: targetBytes === null ? null : output.byteLength <= targetBytes
         })
         completed += 1
       } catch (error) {
@@ -126,6 +146,7 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
   }
 
   const completedCount = items.filter((item) => item.status === 'completed').length
+  const targetReachedCount = items.filter((item) => item.targetReached === true).length
   const finishedCount = items.filter((item) =>
     ['completed', 'failed', 'cancelled'].includes(item.status)
   ).length
@@ -240,6 +261,40 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
               />
               <span className="w-4 text-right">{options.compressionLevel}</span>
             </label>
+            <div className="mt-4 rounded-md bg-gray-50 p-3 dark:bg-gray-800/70">
+              <label
+                className="flex items-center gap-2 text-sm font-medium"
+                htmlFor="batch-target-size"
+              >
+                Maximum output size
+                <input
+                  id="batch-target-size"
+                  type="number"
+                  min="0.01"
+                  step="0.01"
+                  inputMode="decimal"
+                  value={targetValue}
+                  disabled={isProcessing}
+                  onChange={(event) => setTargetValue(event.target.value)}
+                  placeholder="Optional"
+                  className="w-28 rounded border border-gray-300 bg-white px-2 py-1 text-right dark:border-gray-600 dark:bg-gray-900"
+                />
+                <select
+                  aria-label="Target size unit"
+                  value={targetUnit}
+                  disabled={isProcessing}
+                  onChange={(event) => setTargetUnit(event.target.value as TargetSizeUnit)}
+                  className="rounded border border-gray-300 bg-white px-2 py-1 dark:border-gray-600 dark:bg-gray-900"
+                >
+                  <option value="KB">KB</option>
+                  <option value="MB">MB</option>
+                </select>
+              </label>
+              <p className="mt-1 text-xs text-gray-500">
+                Best effort maximum. The original content is preserved; some PDFs cannot reach a
+                smaller target without lossy image recompression.
+              </p>
+            </div>
           </fieldset>
         )}
 
@@ -290,6 +345,15 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
                       {fileSizeLabel(item.originalBytes)}
                       {item.outputBytes === null ? '' : ` → ${fileSizeLabel(item.outputBytes)}`}
                     </p>
+                    {item.targetReached !== null && item.outputBytes !== null && (
+                      <p
+                        className={`mt-1 text-xs ${item.targetReached ? 'text-green-600' : 'text-amber-600 dark:text-amber-400'}`}
+                      >
+                        {item.targetReached
+                          ? 'Target size reached'
+                          : 'Target not reached; best effort output'}
+                      </p>
+                    )}
                     {item.error && (
                       <p className="mt-1 text-xs text-red-600 dark:text-red-400">{item.error}</p>
                     )}
@@ -310,6 +374,9 @@ export function BatchProcessingModal({ onClose }: BatchProcessingModalProps): Re
             <div className="flex justify-between text-xs text-gray-500">
               <span>
                 {completedCount} of {items.length} completed
+                {targetValue.trim() && mode === 'optimize-pdfs'
+                  ? ` · ${targetReachedCount} met target`
+                  : ''}
               </span>
               <span>{progress}%</span>
             </div>

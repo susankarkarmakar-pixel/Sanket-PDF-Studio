@@ -2,6 +2,7 @@ import { imagesToPdf, type ImageInput } from '../import-export/imageToPdf'
 
 export type BatchMode = 'convert-images' | 'optimize-pdfs'
 export type BatchItemStatus = 'queued' | 'processing' | 'completed' | 'failed' | 'cancelled'
+export type TargetSizeUnit = 'KB' | 'MB'
 
 export interface BatchInput {
   path: string
@@ -15,7 +16,18 @@ export interface BatchItem {
   outputPath: string | null
   originalBytes: number
   outputBytes: number | null
+  targetReached: boolean | null
   error: string | null
+}
+
+export const parseTargetSize = (value: string, unit: TargetSizeUnit): number | null => {
+  if (!value.trim()) return null
+  const numericValue = Number(value)
+  if (!Number.isFinite(numericValue) || numericValue <= 0) {
+    throw new Error('Target size must be greater than zero.')
+  }
+  const multiplier = unit === 'MB' ? 1024 * 1024 : 1024
+  return Math.round(numericValue * multiplier)
 }
 
 export interface BatchOptimizeOptions {
@@ -23,6 +35,7 @@ export interface BatchOptimizeOptions {
   generateObjectStreams: boolean
   recompressStreams: boolean
   compressionLevel: number
+  targetSizeBytes: number | null
 }
 
 const baseName = (filePath: string): string =>

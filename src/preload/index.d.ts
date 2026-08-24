@@ -46,6 +46,7 @@ export interface OptimizePdfOptions {
   generateObjectStreams: boolean
   recompressStreams: boolean
   compressionLevel: number
+  targetSizeBytes?: number | null
 }
 
 export interface EncryptPdfOptions {
