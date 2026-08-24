@@ -11,6 +11,9 @@ export const imagesToPdf = async (images: ImageInput[]): Promise<Uint8Array> => 
 
   for (const image of images) {
     const extension = image.path.toLowerCase().split('.').pop()
+    if (!extension || !['png', 'jpg', 'jpeg'].includes(extension)) {
+      throw new Error(`Unsupported image format for ${image.path}. Use PNG or JPEG.`)
+    }
     const embedded =
       extension === 'png' ? await pdf.embedPng(image.data) : await pdf.embedJpg(image.data)
     const page = pdf.addPage([embedded.width, embedded.height])
