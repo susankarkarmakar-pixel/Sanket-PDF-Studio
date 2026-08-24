@@ -1,9 +1,11 @@
 {
   "name": "sanket-pdf-studio",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Offline-first PDF viewer and editor for annotating, organizing, and exporting documents.",
+  "author": "Susankar Karmakar",
   "main": "./out/main/index.js",
-  "author": "Sanket PDF Studio",
+  "productName": "Sanket PDF Studio",
+  "desktopName": "sanket-pdf-studio",
   "homepage": "https://github.com/susankarkarmakar-pixel/Sanket-PDF-Studio",
   "repository": "https://github.com/susankarkarmakar-pixel/Sanket-PDF-Studio",
   "scripts": {
@@ -19,10 +21,11 @@
     "dev": "electron-vite dev",
     "build": "npm run typecheck && electron-vite build",
     "postinstall": "electron-builder install-app-deps",
+    "prepare:qpdf": "node scripts/prepare-qpdf.mjs",
     "build:unpack": "npm run build && electron-builder --dir",
-    "build:win": "npm run build && electron-builder --win",
+    "build:win": "npm run prepare:qpdf -- --platform win32 && npm run build && electron-builder --win",
     "build:mac": "echo \"macOS build disabled\"",
-    "build:linux": "npm run build && electron-builder --linux"
+    "build:linux": "npm run prepare:qpdf -- --platform linux && npm run build && electron-builder --linux"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.2",

@@ -3,6 +3,7 @@ import { tmpdir } from 'os'
 import { join } from 'path'
 import { execFile } from 'child_process'
 import { promisify } from 'util'
+import { getQpdfInvocation } from './runtime'
 
 const execFileAsync = promisify(execFile)
 
@@ -74,6 +75,7 @@ export const optimizePdfDocument = async (
   try {
     await writeFile(inputPath, Buffer.from(pdfData))
 
+    const qpdf = await getQpdfInvocation()
     const compressionLevels =
       normalized.targetSizeBytes === null
         ? [normalized.compressionLevel]
@@ -89,8 +91,9 @@ export const optimizePdfDocument = async (
           `output-${compressionLevel}-${optimizeImages ? 'images' : 'streams'}.pdf`
         )
         await execFileAsync(
-          'qpdf',
-          buildQpdfArgs(inputPath, outputPath, candidateOptions, optimizeImages)
+          qpdf.path,
+          buildQpdfArgs(inputPath, outputPath, candidateOptions, optimizeImages),
+          qpdf.env ? { env: qpdf.env } : undefined
         )
         const candidate = new Uint8Array(await readFile(outputPath))
         if (bestOutput === null || candidate.byteLength < bestOutput.byteLength) {

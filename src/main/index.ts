@@ -2,6 +2,7 @@ import { app, shell, BrowserWindow, ipcMain, dialog, globalShortcut } from 'elec
 import { basename, extname, join, relative, resolve } from 'path'
 import { electronApp, optimizer, is } from '@electron-toolkit/utils'
 import { optimizePdfDocument, type OptimizePdfOptions } from './batch'
+import { getRuntimeCapabilities } from './runtime'
 import fs from 'fs'
 import {
   encryptPdfDocument,
@@ -239,6 +240,8 @@ app.whenReady().then(() => {
   })
 
   ipcMain.handle('security:hasSignature', async (_, data: Uint8Array) => hasPdfSignature(data))
+
+  ipcMain.handle('runtime:getCapabilities', async () => getRuntimeCapabilities())
 
   ipcMain.handle(
     'batch:optimizePdf',

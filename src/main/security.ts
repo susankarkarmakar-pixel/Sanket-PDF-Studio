@@ -9,6 +9,7 @@ import { pdflibAddPlaceholder } from '@signpdf/placeholder-pdf-lib'
 import { SignPdf } from '@signpdf/signpdf'
 import { P12Signer } from '@signpdf/signer-p12'
 import { extractSignature } from '@signpdf/utils'
+import { getQpdfInvocation } from './runtime'
 
 const execFileAsync = promisify(execFile)
 
@@ -102,7 +103,8 @@ export const encryptPdfDocument = async (
       inputPath,
       outputPath
     ]
-    await execFileAsync('qpdf', args)
+    const qpdf = await getQpdfInvocation()
+    await execFileAsync(qpdf.path, args, qpdf.env ? { env: qpdf.env } : undefined)
     return new Uint8Array(await readFile(outputPath))
   } finally {
     await rm(temporaryDirectory, { recursive: true, force: true })

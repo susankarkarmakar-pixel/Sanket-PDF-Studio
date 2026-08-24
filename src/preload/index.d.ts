@@ -58,6 +58,21 @@ export interface EncryptPdfOptions {
   allowFormFilling: boolean
 }
 
+export type RuntimeToolSource = 'bundled' | 'system' | 'unavailable'
+
+export interface RuntimeToolStatus {
+  available: boolean
+  source: RuntimeToolSource
+  path: string | null
+  version: string | null
+  error: string | null
+}
+
+export interface RuntimeCapabilities {
+  qpdf: RuntimeToolStatus
+  openssl: RuntimeToolStatus
+}
+
 export interface SanketApi {
   openFile: () => Promise<FileData | null>
   openFiles: () => Promise<FileData[]>
@@ -71,6 +86,7 @@ export interface SanketApi {
     fileName: string
   ) => Promise<string | null>
   optimizePdf: (data: Uint8Array, options?: Partial<OptimizePdfOptions>) => Promise<Uint8Array>
+  getRuntimeCapabilities: () => Promise<RuntimeCapabilities>
   print: () => Promise<boolean>
   signPdf: (data: Uint8Array, options: SignPdfOptions) => Promise<Uint8Array>
   encryptPdf: (data: Uint8Array, options: EncryptPdfOptions) => Promise<Uint8Array>

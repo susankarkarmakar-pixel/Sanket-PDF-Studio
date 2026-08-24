@@ -13,6 +13,11 @@ files:
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
   - '!resources/*'
   - 'resources/pdf.worker.mjs'
+extraResources:
+  - from: resources/qpdf
+    to: qpdf
+    filter:
+      - '**/*'
 asarUnpack:
   - resources/**
 win:
@@ -26,6 +31,7 @@ nsis:
   createDesktopShortcut: always
 linux:
   executableName: sanket-pdf-studio
+  syncDesktopName: true
   target:
     - AppImage
     - deb
